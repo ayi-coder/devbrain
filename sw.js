@@ -1,21 +1,21 @@
 const CACHE_NAME = 'devbrain-v1';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/css/theme.css',
-  '/js/concepts.js',
-  '/js/db.js',
-  '/js/adaptive.js',
-  '/js/router.js',
-  '/js/app.js',
-  '/views/home.js',
-  '/views/concept-map.js',
-  '/views/learn.js',
-  '/views/quiz.js',
-  '/views/results.js',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  './',
+  './index.html',
+  './manifest.json',
+  './css/theme.css',
+  './js/concepts.js',
+  './js/db.js',
+  './js/adaptive.js',
+  './js/router.js',
+  './js/app.js',
+  './views/home.js',
+  './views/concept-map.js',
+  './views/learn.js',
+  './views/quiz.js',
+  './views/results.js',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {

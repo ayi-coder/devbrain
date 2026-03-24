@@ -9,7 +9,7 @@ import { renderResults } from '../views/results.js';
 
 // Register service worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
+  navigator.serviceWorker.register('./sw.js');
 }
 
 // Store concepts globally for views to access
@@ -27,4 +27,12 @@ async function init() {
   });
 }
 
-init();
+init().catch((err) => {
+  console.error('Init failed:', err);
+  const el = document.getElementById('view-home');
+  const msg = document.createElement('p');
+  msg.style.cssText = 'padding:20px;color:var(--red)';
+  msg.textContent = 'Failed to start: ' + err.message;
+  el.appendChild(msg);
+  el.classList.add('view--active');
+});
