@@ -1,0 +1,56 @@
+<h2>How deep should the navigation go?</h2>
+<p class="subtitle">Pick the hierarchy depth that feels right for the app</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>2 Levels — Category → Concepts</h3>
+      <p style="margin-bottom:12px">Simple. Tap a category, see all its concepts.</p>
+      <div style="display:flex;gap:10px;font-size:13px;">
+        <div style="background:rgba(97,175,239,0.12);border:1px solid rgba(97,175,239,0.3);border-radius:10px;padding:10px 14px;min-width:110px">
+          <div style="font-weight:600;color:#61afef;margin-bottom:6px">🖥️ Terminal</div>
+          <div style="color:#abb2bf;line-height:1.8">bash<br>powershell<br>shell<br>terminal<br>pwd<br>ls, cd, mkdir…</div>
+        </div>
+        <div style="display:flex;align-items:center;color:#5c6370;font-size:18px">→</div>
+        <div style="background:rgba(40,44,52,0.8);border:1px solid #3e4451;border-radius:10px;padding:10px 14px;min-width:130px">
+          <div style="font-weight:600;color:#e5c07b;margin-bottom:8px;font-size:12px">TERMINAL</div>
+          <div style="background:#2c313a;border-radius:6px;padding:8px;margin-bottom:6px;font-size:12px">bash</div>
+          <div style="background:#2c313a;border-radius:6px;padding:8px;margin-bottom:6px;font-size:12px">powershell</div>
+          <div style="background:#2c313a;border-radius:6px;padding:8px;margin-bottom:6px;font-size:12px">pwd</div>
+          <div style="background:#2c313a;border-radius:6px;padding:8px;font-size:12px">ls…</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#5c6370">✓ Simple to navigate &nbsp;✓ Fewer taps &nbsp;✗ Terminal mixes concepts + commands</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>3 Levels — Category → Subcategory → Concepts</h3>
+      <p style="margin-bottom:12px">Richer. Tap a category, choose a subcategory, then see focused concepts.</p>
+      <div style="display:flex;gap:8px;font-size:13px;flex-wrap:wrap">
+        <div style="background:rgba(97,175,239,0.12);border:1px solid rgba(97,175,239,0.3);border-radius:10px;padding:10px 14px;min-width:100px">
+          <div style="font-weight:600;color:#61afef;margin-bottom:6px">🖥️ Terminal</div>
+          <div style="color:#abb2bf;line-height:1.8;font-size:12px">Concepts<br>Bash<br>PowerShell</div>
+        </div>
+        <div style="display:flex;align-items:center;color:#5c6370;font-size:18px">→</div>
+        <div style="background:rgba(40,44,52,0.8);border:1px solid #3e4451;border-radius:10px;padding:10px 14px;min-width:110px">
+          <div style="font-weight:600;color:#e5c07b;margin-bottom:8px;font-size:12px">TERMINAL</div>
+          <div style="background:rgba(152,195,121,0.12);border:1px solid rgba(152,195,121,0.3);border-radius:6px;padding:7px;margin-bottom:5px;font-size:12px">📖 Concepts</div>
+          <div style="background:rgba(229,192,123,0.12);border:1px solid rgba(229,192,123,0.3);border-radius:6px;padding:7px;margin-bottom:5px;font-size:12px">🐚 Bash</div>
+          <div style="background:rgba(198,120,221,0.12);border:1px solid rgba(198,120,221,0.3);border-radius:6px;padding:7px;font-size:12px">🪟 PowerShell</div>
+        </div>
+        <div style="display:flex;align-items:center;color:#5c6370;font-size:18px">→</div>
+        <div style="background:rgba(40,44,52,0.8);border:1px solid #3e4451;border-radius:10px;padding:10px 14px;min-width:120px">
+          <div style="font-weight:600;color:#e5c07b;margin-bottom:8px;font-size:12px">BASH COMMANDS</div>
+          <div style="background:#2c313a;border-radius:6px;padding:7px;margin-bottom:5px;font-size:12px"><code>pwd</code> — where am I?</div>
+          <div style="background:#2c313a;border-radius:6px;padding:7px;margin-bottom:5px;font-size:12px"><code>ls</code> — list files</div>
+          <div style="background:#2c313a;border-radius:6px;padding:7px;font-size:12px"><code>cd</code> — navigate…</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#5c6370">✓ Concepts separate from commands &nbsp;✓ Focused lists &nbsp;✗ One extra tap to get anywhere</div>
+    </div>
+  </div>
+</div>

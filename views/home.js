@@ -55,7 +55,7 @@ export async function renderHome(container, params = {}, dbName = 'devbrain') {
   const healthPct = recentSessions.length === 0 ? 0
     : Math.round(
         (recentSessions.filter((s) =>
-          s.total_questions > 0 && s.correct_count / s.total_questions > 0.6
+          s.total_questions > 0 && s.correct_count / s.total_questions >= 0.70
         ).length / recentSessions.length) * 100
       );
 

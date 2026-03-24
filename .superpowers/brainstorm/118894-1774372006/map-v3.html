@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Map v3</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a1d23;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #abb2bf;
+    padding: 20px;
+    font-size: 14px;
+  }
+  h2 { color: #e5c07b; font-size: 17px; margin-bottom: 5px; }
+  .sub { color: #5c6370; font-size: 12px; margin-bottom: 22px; line-height: 1.6; }
+
+  /* ── ZONE COLORS ── */
+  :root {
+    --c-machine:  #61afef;
+    --c-shell:    #e5c07b;
+    --c-git:      #98c379;
+    --c-web:      #c678dd;
+    --c-editor:   #e06c75;
+    --c-packages: #56b6c2;
+    --c-ai:       #d19a66;
+    --c-cloud:    #abb2bf;
+  }
+
+  /* ── LAYOUT ── */
+  .cols { display: flex; gap: 18px; flex-wrap: wrap; }
+  .panel {
+    flex: 1; min-width: 290px;
+    background: #21252b;
+    border-radius: 16px;
+    padding: 18px;
+    border: 1px solid #2c313a;
+  }
+  .panel-label {
+    font-size: 10px; color: #4b5263;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  /* ── WORLD MAP GRID ── */
+  .zone-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .zone {
+    border-radius: 11px;
+    padding: 11px 12px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .zone:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+
+  .zone[data-zone="machine"]  { background: rgba(97,175,239,0.09);  border-color: var(--c-machine); }
+  .zone[data-zone="shell"]    { background: rgba(229,192,123,0.09); border-color: var(--c-shell); }
+  .zone[data-zone="git"]      { background: rgba(152,195,121,0.07); border-color: rgba(152,195,121,0.45); }
+  .zone[data-zone="web"]      { background: rgba(198,120,221,0.07); border-color: rgba(198,120,221,0.4); }
+  .zone[data-zone="editor"]   { background: rgba(224,108,117,0.07); border-color: rgba(224,108,117,0.35); }
+  .zone[data-zone="packages"] { background: rgba(86,182,194,0.07);  border-color: rgba(86,182,194,0.35); }
+  .zone[data-zone="ai"]       { background: rgba(209,154,102,0.07); border-color: rgba(209,154,102,0.35); }
+  .zone[data-zone="cloud"]    { background: rgba(171,178,191,0.07); border-color: rgba(171,178,191,0.3); }
+
+  .zone-header { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+  .zone-icon   { font-size: 18px; line-height: 1; }
+  .zone-name   { font-size: 11px; font-weight: 700; letter-spacing: 0.03em; }
+  .zone[data-zone="machine"]  .zone-name { color: var(--c-machine); }
+  .zone[data-zone="shell"]    .zone-name { color: var(--c-shell); }
+  .zone[data-zone="git"]      .zone-name { color: var(--c-git); }
+  .zone[data-zone="web"]      .zone-name { color: var(--c-web); }
+  .zone[data-zone="editor"]   .zone-name { color: var(--c-editor); }
+  .zone[data-zone="packages"] .zone-name { color: var(--c-packages); }
+  .zone[data-zone="ai"]       .zone-name { color: var(--c-ai); }
+  .zone[data-zone="cloud"]    .zone-name { color: var(--c-cloud); }
+
+  /* Concept dots */
+  .dots { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    display: inline-block;
+  }
+  .dot--done    { opacity: 1; }
+  .dot--partial { opacity: 0.45; }
+  .dot--locked  { background: #2c313a !important; border: 1px dashed #3e4451; opacity: 0.6; }
+
+  /* Cross-category dot: gradient via split using box-shadow trick */
+  .dot--cross {
+    background: linear-gradient(135deg, var(--c-shell) 50%, var(--c-packages) 50%);
+    opacity: 0.9;
+  }
+  .dot--cross2 {
+    background: linear-gradient(135deg, var(--c-shell) 50%, var(--c-git) 50%);
+    opacity: 0.9;
+  }
+
+  .zone-sub { font-size: 9.5px; color: #4b5263; }
+  .zone-count {
+    position: absolute; bottom: 9px; right: 10px;
+    font-size: 10px; font-weight: 600;
+  }
+  .zone[data-zone="machine"]  .zone-count { color: var(--c-machine); }
+  .zone[data-zone="shell"]    .zone-count { color: var(--c-shell); }
+  .zone[data-zone="git"]      .zone-count { color: var(--c-git); }
+
+  /* Earned connection between zones  */
+  .earned-link {
+    background: linear-gradient(90deg, var(--c-shell), var(--c-git));
+    height: 2px; border-radius: 1px;
+    width: 32px; margin: 0 auto;
+    opacity: 0.6;
+  }
+  .link-label { font-size: 9px; color: #4b5263; text-align: center; margin-bottom: 2px; }
+
+  /* ── INNER MAP ── */
+  .breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 14px; font-size: 12px;
+  }
+  .bc-back { color: #5c6370; cursor: pointer; }
+  .bc-sep  { color: #3e4451; }
+  .bc-curr { color: var(--c-shell); font-weight: 600; font-size: 13px; }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #5c6370; }
+  .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<h2>Knowledge Map v3 — earned connections + gradients</h2>
+<p class="sub">
+  Left: world map — zones always visible, connections appear as you earn them.<br>
+  Right: inside Shell &amp; Terminal — cross-category nodes show gradient colors, faint lines link out to their other zone.
+</p>
+
+<div class="cols">
+
+  <!-- ═══ WORLD MAP ═══ -->
+  <div class="panel">
+    <div class="panel-label">World Map — snapshot after 2 concepts learned</div>
+
+    <div class="zone-grid">
+
+      <!-- YOUR MACHINE — 2 done -->
+      <div class="zone" data-zone="machine">
+        <div class="zone-header">
+          <span class="zone-icon">🖥️</span>
+          <span class="zone-name">YOUR MACHINE</span>
+        </div>
+        <div class="dots">
+          <div class="dot dot--done" style="background:var(--c-machine)"></div>
+          <div class="dot dot--done" style="background:var(--c-machine)"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+        </div>
+        <div class="zone-sub">OS · files · paths</div>
+        <div class="zone-count">2/5</div>
+      </div>
+
+      <!-- SHELL & TERMINAL — in progress, some done -->
+      <div class="zone" data-zone="shell">
+        <div class="zone-header">
+          <span class="zone-icon">⌨️</span>
+          <span class="zone-name">SHELL & TERMINAL</span>
+        </div>
+        <div class="dots">
+          <div class="dot dot--done" style="background:var(--c-shell)"></div>
+          <div class="dot dot--done" style="background:var(--c-shell)"></div>
+          <div class="dot dot--done dot--partial" style="background:var(--c-shell)"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+        </div>
+        <div class="zone-sub">bash · cmds · piping</div>
+        <div class="zone-count">2/6</div>
+      </div>
+
+      <!-- GIT — shows 1 cross-category node already visible (from shell) -->
+      <div class="zone" data-zone="git">
+        <div class="zone-header">
+          <span class="zone-icon">📜</span>
+          <span class="zone-name">GIT & GITHUB</span>
+        </div>
+        <div class="dots">
+          <!-- 1 cross-category node: shell→git, shown with gradient -->
+          <div class="dot dot--cross2" title="bash (learned in Shell) unlocked this"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+        </div>
+        <div class="zone-sub">commits · branches · PRs</div>
+        <div class="zone-count" style="color:#636d83">1↗ visible</div>
+      </div>
+
+      <!-- THE WEB — untouched but open -->
+      <div class="zone" data-zone="web">
+        <div class="zone-header">
+          <span class="zone-icon">🌐</span>
+          <span class="zone-name">THE WEB</span>
+        </div>
+        <div class="dots">
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+        </div>
+        <div class="zone-sub">HTTP · APIs · DNS</div>
+      </div>
+
+      <!-- PACKAGES — shows 1 cross-category node (env_var from shell) -->
+      <div class="zone" data-zone="packages">
+        <div class="zone-header">
+          <span class="zone-icon">📦</span>
+          <span class="zone-name">PACKAGES & ENV</span>
+        </div>
+        <div class="dots">
+          <div class="dot dot--cross" title="env_var (learned in Shell) also lives here"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+        </div>
+        <div class="zone-sub">npm · pip · env vars</div>
+        <div class="zone-count" style="color:#636d83">1↗ visible</div>
+      </div>
+
+      <!-- EDITOR — untouched -->
+      <div class="zone" data-zone="editor">
+        <div class="zone-header">
+          <span class="zone-icon">🗒️</span>
+          <span class="zone-name">EDITOR & CODE</span>
+        </div>
+        <div class="dots">
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+        </div>
+        <div class="zone-sub">VS Code · functions · debug</div>
+      </div>
+
+      <!-- AI — untouched -->
+      <div class="zone" data-zone="ai">
+        <div class="zone-header">
+          <span class="zone-icon">🤖</span>
+          <span class="zone-name">AI & PROMPTING</span>
+        </div>
+        <div class="dots">
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+        </div>
+        <div class="zone-sub">LLMs · prompts · tokens</div>
+      </div>
+
+      <!-- CLOUD — untouched -->
+      <div class="zone" data-zone="cloud">
+        <div class="zone-header">
+          <span class="zone-icon">☁️</span>
+          <span class="zone-name">CLOUD & DEPLOY</span>
+        </div>
+        <div class="dots">
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+          <div class="dot dot--locked"></div>
+        </div>
+        <div class="zone-sub">hosting · Docker · CI/CD</div>
+      </div>
+
+    </div>
+
+    <!-- Earned connection indicator below grid -->
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #2c313a">
+      <div class="link-label">earned connection</div>
+      <div style="display:flex;align-items:center;gap:8px;justify-content:center">
+        <span style="font-size:11px;color:var(--c-shell)">⌨️ Shell</span>
+        <div class="earned-link"></div>
+        <span style="font-size:11px;color:var(--c-git)">📜 Git</span>
+      </div>
+      <div style="font-size:10px;color:#4b5263;text-align:center;margin-top:5px">
+        "bash" concept links these two zones
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ INNER MAP: SHELL & TERMINAL ═══ -->
+  <div class="panel" style="border-color: var(--c-shell); box-shadow: 0 0 20px rgba(229,192,123,0.07)">
+    <div class="panel-label">Inside Shell &amp; Terminal</div>
+
+    <div class="breadcrumb">
+      <span class="bc-back">← Map</span>
+      <span class="bc-sep">/</span>
+      <span class="bc-curr">⌨️ Shell &amp; Terminal</span>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:var(--c-shell)"></div>
+        this zone
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:linear-gradient(135deg,var(--c-shell) 50%,var(--c-git) 50%)"></div>
+        cross-zone (Shell+Git)
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:linear-gradient(135deg,var(--c-shell) 50%,var(--c-packages) 50%)"></div>
+        cross-zone (Shell+Pkgs)
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#2c313a;border:1px dashed #3e4451"></div>
+        locked
+      </div>
+    </div>
+
+    <svg width="100%" height="250" viewBox="0 0 270 250">
+      <defs>
+        <!-- Gradient for shell→git cross links -->
+        <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#e5c07b" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#98c379" stop-opacity="0.6"/>
+        </linearGradient>
+        <!-- Gradient for shell→packages cross links -->
+        <linearGradient id="sp" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#e5c07b" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#56b6c2" stop-opacity="0.5"/>
+        </linearGradient>
+        <!-- Node gradient: shell + git -->
+        <linearGradient id="ng-sg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="50%" stop-color="#e5c07b"/>
+          <stop offset="50%" stop-color="#98c379"/>
+        </linearGradient>
+        <!-- Node gradient: shell + packages -->
+        <linearGradient id="ng-sp" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="50%" stop-color="#e5c07b"/>
+          <stop offset="50%" stop-color="#56b6c2"/>
+        </linearGradient>
+      </defs>
+
+      <!-- ── CONNECTIONS ── -->
+      <!-- terminal → shell (done) -->
+      <line x1="70" y1="52"  x2="135" y2="100" stroke="#e5c07b" stroke-width="1.5" stroke-opacity="0.5"/>
+      <!-- shell → bash (in progress) -->
+      <line x1="135" y1="122" x2="60"  y2="178" stroke="#e5c07b" stroke-width="1.5" stroke-opacity="0.5"/>
+      <!-- shell → powershell (locked) -->
+      <line x1="135" y1="122" x2="210" y2="178" stroke="#3e4451" stroke-width="1" stroke-dasharray="5,3"/>
+      <!-- bash → bash_commands (locked) -->
+      <line x1="60"  y1="200" x2="60"  y2="238" stroke="#3e4451" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <!-- Cross-zone lines (earned, gradient colored) -->
+      <!-- bash → git zone (gradient shell→git) -->
+      <line x1="60" y1="178" x2="235" y2="120" stroke="url(#sg)" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <!-- env_var → packages zone (gradient shell→packages) -->
+      <line x1="135" y1="100" x2="255" y2="170" stroke="url(#sp)" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+      <!-- Zone labels at line ends -->
+      <text x="240" y="115" font-size="9" fill="#98c379" opacity="0.7">📜 Git</text>
+      <text x="238" y="177" font-size="9" fill="#56b6c2" opacity="0.7">📦 Pkgs</text>
+
+      <!-- ── NODES ── -->
+
+      <!-- terminal — done, pure shell color -->
+      <circle cx="70" cy="48" r="26" fill="rgba(229,192,123,0.14)" stroke="#e5c07b" stroke-width="2"/>
+      <text x="70" y="42" text-anchor="middle" font-size="16">🖥️</text>
+      <text x="70" y="58" text-anchor="middle" font-size="9" fill="#e5c07b">terminal</text>
+
+      <!-- shell — done, pure shell color -->
+      <circle cx="135" cy="108" r="26" fill="rgba(229,192,123,0.14)" stroke="#e5c07b" stroke-width="2"/>
+      <text x="135" y="102" text-anchor="middle" font-size="16">🐚</text>
+      <text x="135" y="118" text-anchor="middle" font-size="9" fill="#e5c07b">shell</text>
+
+      <!-- bash — CROSS-ZONE: shell + git gradient (bash unlocks git concepts) -->
+      <circle cx="60" cy="185" r="24" fill="rgba(229,192,123,0.08)" stroke="url(#ng-sg)" stroke-width="2.5"/>
+      <text x="60" y="179" text-anchor="middle" font-size="15">🐚</text>
+      <text x="60" y="193" text-anchor="middle" font-size="9" fill="#abb2bf">bash</text>
+      <!-- small gradient badge -->
+      <circle cx="78" cy="168" r="6" fill="url(#ng-sg)" stroke="#21252b" stroke-width="1.5"/>
+
+      <!-- env_var — CROSS-ZONE: shell + packages gradient -->
+      <!-- shown as a shared concept on the shell node -->
+      <circle cx="135" cy="108" r="10" fill="url(#ng-sp)" stroke="#21252b" stroke-width="1.5" transform="translate(20, 20)"/>
+      <text x="155" y="132" text-anchor="middle" font-size="7" fill="#abb2bf">env_var</text>
+
+      <!-- powershell — locked -->
+      <circle cx="210" cy="185" r="22" fill="#1e2227" stroke="#3e4451" stroke-width="1.5"/>
+      <text x="210" y="179" text-anchor="middle" font-size="14" fill="#3e4451">🔒</text>
+      <text x="210" y="193" text-anchor="middle" font-size="8" fill="#2c313a">powershell</text>
+
+      <!-- bash_commands — locked -->
+      <circle cx="60" cy="244" r="18" fill="#1e2227" stroke="#2c313a" stroke-width="1"/>
+      <text x="60" y="238" text-anchor="middle" font-size="11" fill="#2c313a">⌨️</text>
+      <text x="60" y="252" text-anchor="middle" font-size="7.5" fill="#2c313a">cmds</text>
+
+    </svg>
+  </div>
+
+</div>
+
+<p style="font-size:11px;color:#4b5263;margin-top:16px;line-height:1.7">
+  <strong style="color:#636d83">Gradient badge</strong> on a node = this concept connects to another zone.<br>
+  <strong style="color:#636d83">Gradient connection line</strong> = an earned cross-zone link (Shell yellow → Git green).<br>
+  <strong style="color:#636d83">Dashed grey lines</strong> = prerequisite paths not yet unlocked.<br>
+  World map "↗ visible" = you have a foothold in this zone from another zone's progress.
+</p>
+
+</body>
+</html>

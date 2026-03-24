@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phone Map</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #111318;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #abb2bf;
+  padding: 20px 16px;
+}
+h2 { color: #e5c07b; font-size: 16px; margin-bottom: 4px; }
+.sub { color: #4b5263; font-size: 12px; margin-bottom: 20px; }
+
+/* Two phone frames side by side */
+.phones { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+
+.phone-frame {
+  width: 320px;
+  background: #0d0f14;
+  border-radius: 36px;
+  border: 2px solid #2c313a;
+  padding: 28px 16px 20px;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+.phone-label {
+  font-size: 11px; color: #4b5263; letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 14px; text-align: center;
+}
+
+/* Star field */
+.stars {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: hidden;
+}
+
+/* ─────────── WORLD MAP ─────────── */
+.world-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px;
+}
+.world-title { font-size: 15px; font-weight: 700; color: #e5c07b; }
+.world-sub   { font-size: 11px; color: #4b5263; }
+.bridge-pill {
+  background: rgba(229,192,123,0.12);
+  border: 1px solid rgba(229,192,123,0.3);
+  border-radius: 20px; padding: 3px 9px;
+  font-size: 10px; color: #e5c07b;
+}
+
+.zone-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+
+.zone {
+  border-radius: 14px; padding: 11px 10px;
+  border: 1.5px solid transparent; cursor: pointer;
+  position: relative; overflow: hidden;
+  transition: transform 0.15s;
+}
+
+/* Ambient glow layer behind each zone */
+.zone::before {
+  content: ''; position: absolute;
+  inset: 0; border-radius: 14px;
+  opacity: 0.04;
+}
+
+.z-machine  { background: #0d1520; border-color: rgba(97,175,239,0.55); }
+.z-machine::before { background: #61afef; opacity: 0.08; }
+.z-shell    { background: #1a1408; border-color: rgba(229,192,123,0.5); }
+.z-shell::before { background: #e5c07b; opacity: 0.07; }
+.z-git      { background: #0e1a0e; border-color: rgba(152,195,121,0.4); }
+.z-web      { background: #170d1e; border-color: rgba(198,120,221,0.4); }
+.z-editor   { background: #1a0d0e; border-color: rgba(224,108,117,0.35); }
+.z-packages { background: #0c1718; border-color: rgba(86,182,194,0.35); }
+.z-ai       { background: #1a1208; border-color: rgba(209,154,102,0.35); }
+.z-cloud    { background: #141518; border-color: rgba(171,178,191,0.3); }
+
+.zone-row  { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.zone-icon { font-size: 16px; line-height: 1; }
+.zone-name { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; }
+.z-machine  .zone-name { color: #61afef; }
+.z-shell    .zone-name { color: #e5c07b; }
+.z-git      .zone-name { color: #98c379; }
+.z-web      .zone-name { color: #c678dd; }
+.z-editor   .zone-name { color: #e06c75; }
+.z-packages .zone-name { color: #56b6c2; }
+.z-ai       .zone-name { color: #d19a66; }
+.z-cloud    .zone-name { color: #abb2bf; }
+
+.zone-dots { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 5px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.done   { }
+.avail  { opacity: 0.45; animation: breathe 2.4s ease-in-out infinite; }
+.locked { background: #1e2227 !important; border: 1px dashed #3e4451; }
+/* Bridge dot — gradient split -->*/
+.bridge-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: linear-gradient(135deg, #e5c07b 50%, #98c379 50%);
+  border: 1px solid #0d0f14;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50%       { opacity: 0.65; transform: scale(1.0); }
+}
+
+.zone-footer { display: flex; justify-content: space-between; align-items: center; }
+.zone-sub  { font-size: 8.5px; color: #3e4451; }
+.zone-cnt  { font-size: 9px; font-weight: 600; }
+.z-machine  .zone-cnt { color: #61afef; }
+.z-shell    .zone-cnt { color: #e5c07b; }
+.z-git      .zone-cnt { color: #4b5263; }
+
+/* Earned connection bar at bottom */
+.earned-bar {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid #1e2227;
+  display: flex; align-items: center; gap: 8px;
+}
+.earned-line {
+  flex: 1; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, #e5c07b, #98c379);
+  opacity: 0.7;
+}
+.earned-label { font-size: 10px; color: #4b5263; flex-shrink: 0; }
+
+
+/* ─────────── INNER MAP ─────────── */
+.inner-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px;
+}
+.back-btn {
+  background: rgba(229,192,123,0.1); border: 1px solid rgba(229,192,123,0.25);
+  border-radius: 8px; padding: 4px 9px;
+  font-size: 11px; color: #e5c07b; cursor: pointer;
+}
+.inner-title { font-size: 14px; font-weight: 700; color: #e5c07b; }
+
+/* The canvas */
+.map-canvas {
+  position: relative;
+  width: 100%; height: 340px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, #161a24 0%, #0a0c12 100%);
+  border-radius: 16px;
+  border: 1px solid #1e2227;
+}
+
+/* Star particles via pseudo */
+.map-canvas::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 20% 15%, rgba(255,255,255,0.3) 0%, transparent 0%),
+    radial-gradient(1px 1px at 70% 25%, rgba(255,255,255,0.2) 0%, transparent 0%),
+    radial-gradient(1px 1px at 40% 60%, rgba(255,255,255,0.25) 0%, transparent 0%),
+    radial-gradient(1px 1px at 85% 70%, rgba(255,255,255,0.15) 0%, transparent 0%),
+    radial-gradient(1px 1px at 15% 80%, rgba(255,255,255,0.2) 0%, transparent 0%),
+    radial-gradient(1px 1px at 55% 90%, rgba(255,255,255,0.18) 0%, transparent 0%),
+    radial-gradient(1.5px 1.5px at 90% 10%, rgba(255,255,255,0.25) 0%, transparent 0%),
+    radial-gradient(1px 1px at 30% 45%, rgba(255,255,255,0.15) 0%, transparent 0%);
+  pointer-events: none;
+}
+
+/* Bottom detail sheet (peek) */
+.detail-sheet {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(10,12,18,0.95) 30%);
+  padding: 32px 14px 14px;
+  border-radius: 0 0 16px 16px;
+}
+.detail-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(229,192,123,0.12);
+  border: 1px solid rgba(229,192,123,0.35);
+  border-radius: 20px; padding: 3px 10px;
+  font-size: 10px; color: #e5c07b; margin-bottom: 6px;
+}
+.detail-name { font-size: 15px; font-weight: 700; color: #abb2bf; margin-bottom: 3px; }
+.detail-sub  { font-size: 11px; color: #4b5263; margin-bottom: 10px; }
+.detail-btn  {
+  display: block; width: 100%;
+  background: rgba(229,192,123,0.15);
+  border: 1px solid rgba(229,192,123,0.4);
+  border-radius: 10px; padding: 9px;
+  font-size: 12px; font-weight: 600; color: #e5c07b;
+  text-align: center; cursor: pointer;
+}
+
+/* Node + edge positioning within canvas */
+.node {
+  position: absolute;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 3px; cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+.node-circle {
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; position: relative;
+  transition: transform 0.2s;
+}
+.node:hover .node-circle { transform: scale(1.1); }
+
+/* State variants */
+.n-done .node-circle {
+  border-width: 2px; border-style: solid;
+}
+.n-available .node-circle {
+  border-width: 2px; border-style: solid;
+  animation: node-breathe 2.2s ease-in-out infinite;
+}
+@keyframes node-breathe {
+  0%,100% { box-shadow: 0 0 6px 2px var(--glow), 0 0 14px 4px var(--glow2); }
+  50%      { box-shadow: 0 0 12px 4px var(--glow), 0 0 28px 8px var(--glow2); }
+}
+.n-locked .node-circle {
+  border: 1.5px dashed #2c313a;
+  background: #111318 !important;
+  opacity: 0.45;
+}
+.n-bridge .node-circle {
+  border-width: 2.5px; border-style: solid;
+  transform: rotate(45deg);
+  border-radius: 6px;
+}
+.n-bridge .node-circle span { transform: rotate(-45deg); display: block; }
+
+.node-label {
+  font-size: 8.5px; color: #636d83;
+  white-space: nowrap; text-align: center;
+}
+.n-done .node-label      { color: inherit; }
+.n-available .node-label { color: #abb2bf; }
+.n-selected .node-label  { color: #e5c07b; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h2>Phone Layout — World Map + Inner Map</h2>
+<p class="sub">320px frames (actual phone width is 390px — these are slightly compressed). Inner map uses star-field + glow nodes inspired by Genshin/FF Crystarium.</p>
+
+<div class="phones">
+
+  <!-- ══════ PHONE 1: WORLD MAP ══════ -->
+  <div class="phone-frame">
+    <div class="phone-label">World Map</div>
+
+    <div class="world-header">
+      <div>
+        <div class="world-title">🗺 Your Map</div>
+        <div class="world-sub">2 zones active · 1 bridge earned</div>
+      </div>
+      <div class="bridge-pill">⬡ 1 bridge</div>
+    </div>
+
+    <div class="zone-grid">
+
+      <!-- Your Machine — 2/5 done -->
+      <div class="zone z-machine">
+        <div class="zone-row">
+          <span class="zone-icon">🖥️</span>
+          <span class="zone-name">YOUR MACHINE</span>
+        </div>
+        <div class="zone-dots">
+          <div class="dot done" style="background:#61afef"></div>
+          <div class="dot done" style="background:#61afef"></div>
+          <div class="dot avail" style="background:#61afef"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+        </div>
+        <div class="zone-footer">
+          <span class="zone-sub">OS · files · paths</span>
+          <span class="zone-cnt">2/5</span>
+        </div>
+      </div>
+
+      <!-- Shell & Terminal — 2/6 done, bridge earned -->
+      <div class="zone z-shell">
+        <div class="zone-row">
+          <span class="zone-icon">⌨️</span>
+          <span class="zone-name">SHELL & TERMINAL</span>
+        </div>
+        <div class="zone-dots">
+          <div class="dot done" style="background:#e5c07b"></div>
+          <div class="dot done" style="background:#e5c07b"></div>
+          <div class="dot avail" style="background:#e5c07b"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+        </div>
+        <div class="zone-footer">
+          <span class="zone-sub">bash · cmds</span>
+          <span class="zone-cnt">2/6</span>
+        </div>
+      </div>
+
+      <!-- Git — bridge foothold visible -->
+      <div class="zone z-git">
+        <div class="zone-row">
+          <span class="zone-icon">📜</span>
+          <span class="zone-name">GIT & GITHUB</span>
+        </div>
+        <div class="zone-dots">
+          <div class="bridge-dot" title="bridge: bash"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+        </div>
+        <div class="zone-footer">
+          <span class="zone-sub">commits · branches</span>
+          <span class="zone-cnt" style="color:#4b5263">⬡ linked</span>
+        </div>
+      </div>
+
+      <!-- Web — untouched -->
+      <div class="zone z-web">
+        <div class="zone-row">
+          <span class="zone-icon">🌐</span>
+          <span class="zone-name">THE WEB</span>
+        </div>
+        <div class="zone-dots">
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+        </div>
+        <div class="zone-footer">
+          <span class="zone-sub">HTTP · APIs · DNS</span>
+        </div>
+      </div>
+
+      <!-- Editor — untouched -->
+      <div class="zone z-editor">
+        <div class="zone-row">
+          <span class="zone-icon">🗒️</span>
+          <span class="zone-name">EDITOR & CODE</span>
+        </div>
+        <div class="zone-dots">
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+        </div>
+        <div class="zone-footer">
+          <span class="zone-sub">VS Code · debug</span>
+        </div>
+      </div>
+
+      <!-- Packages — untouched -->
+      <div class="zone z-packages">
+        <div class="zone-row">
+          <span class="zone-icon">📦</span>
+          <span class="zone-name">PACKAGES & ENV</span>
+        </div>
+        <div class="zone-dots">
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+        </div>
+        <div class="zone-footer">
+          <span class="zone-sub">npm · pip · envs</span>
+        </div>
+      </div>
+
+      <!-- AI — untouched -->
+      <div class="zone z-ai">
+        <div class="zone-row">
+          <span class="zone-icon">🤖</span>
+          <span class="zone-name">AI & PROMPTING</span>
+        </div>
+        <div class="zone-dots">
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+        </div>
+        <div class="zone-footer">
+          <span class="zone-sub">LLMs · prompts</span>
+        </div>
+      </div>
+
+      <!-- Cloud — untouched -->
+      <div class="zone z-cloud">
+        <div class="zone-row">
+          <span class="zone-icon">☁️</span>
+          <span class="zone-name">CLOUD & DEPLOY</span>
+        </div>
+        <div class="zone-dots">
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+          <div class="dot locked"></div>
+        </div>
+        <div class="zone-footer">
+          <span class="zone-sub">hosting · Docker</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Earned connection -->
+    <div class="earned-bar">
+      <span class="earned-label">⌨️</span>
+      <div class="earned-line"></div>
+      <span class="earned-label">📜</span>
+      <span class="earned-label" style="font-size:9px;color:#3e4451">bash bridge</span>
+    </div>
+
+  </div>
+
+
+  <!-- ══════ PHONE 2: INNER MAP (Shell tapped, bash node selected) ══════ -->
+  <div class="phone-frame">
+    <div class="phone-label">Inside Shell &amp; Terminal</div>
+
+    <div class="inner-header">
+      <button class="back-btn">← Map</button>
+      <span class="inner-title">⌨️ Shell &amp; Terminal</span>
+    </div>
+
+    <div class="map-canvas">
+
+      <!-- SVG edges drawn first (behind nodes) -->
+      <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 288 340">
+        <defs>
+          <linearGradient id="sg2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#e5c07b" stop-opacity="0.7"/>
+            <stop offset="100%" stop-color="#98c379" stop-opacity="0.7"/>
+          </linearGradient>
+          <!-- Glow filter -->
+          <filter id="glow-y">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-teal">
+            <feGaussianBlur stdDeviation="2.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- terminal → shell (done, solid glow) -->
+        <line x1="90" y1="70" x2="145" y2="130" stroke="#e5c07b" stroke-width="1.8" stroke-opacity="0.6" filter="url(#glow-y)"/>
+        <!-- shell → bash (done) -->
+        <line x1="145" y1="155" x2="75" y2="215" stroke="#e5c07b" stroke-width="1.8" stroke-opacity="0.6" filter="url(#glow-y)"/>
+        <!-- shell → powershell (locked, dashed) -->
+        <line x1="145" y1="155" x2="215" y2="215" stroke="#2c313a" stroke-width="1.2" stroke-dasharray="5,3"/>
+        <!-- bash → cmds (locked) -->
+        <line x1="75" y1="238" x2="75" y2="295" stroke="#2c313a" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <!-- ps → ps cmds (locked) -->
+        <line x1="215" y1="238" x2="215" y2="295" stroke="#2c313a" stroke-width="1.2" stroke-dasharray="4,3"/>
+
+        <!-- BRIDGE connection: bash ↔ git zone (gradient, dashed = not a prerequisite but a link) -->
+        <line x1="75" y1="215" x2="270" y2="155" stroke="url(#sg2)" stroke-width="1.8" stroke-dasharray="6,4" filter="url(#glow-y)"/>
+        <!-- Bridge label -->
+        <text x="190" y="170" font-size="8" fill="#98c379" opacity="0.6" transform="rotate(-20,190,170)">→ Git &amp; GitHub</text>
+      </svg>
+
+      <!-- NODES -->
+
+      <!-- terminal — done -->
+      <div class="node n-done" style="left:90px;top:70px;--glow:rgba(229,192,123,0.5);--glow2:rgba(229,192,123,0.15)">
+        <div class="node-circle" style="width:44px;height:44px;background:rgba(229,192,123,0.12);border-color:#e5c07b;box-shadow:0 0 8px 2px rgba(229,192,123,0.35),0 0 20px 4px rgba(229,192,123,0.1)">
+          🖥️
+        </div>
+        <div class="node-label" style="color:#e5c07b">terminal</div>
+      </div>
+
+      <!-- shell — done -->
+      <div class="node n-done" style="left:145px;top:143px;--glow:rgba(229,192,123,0.5);--glow2:rgba(229,192,123,0.15)">
+        <div class="node-circle" style="width:48px;height:48px;background:rgba(229,192,123,0.12);border-color:#e5c07b;box-shadow:0 0 10px 3px rgba(229,192,123,0.4),0 0 24px 6px rgba(229,192,123,0.12)">
+          🐚
+        </div>
+        <div class="node-label" style="color:#e5c07b">shell</div>
+      </div>
+
+      <!-- bash — SELECTED, bridge node (gradient ring) -->
+      <div class="node n-done" style="left:75px;top:215px">
+        <div class="node-circle" style="width:46px;height:46px;background:rgba(229,192,123,0.1);border-color:#e5c07b;box-shadow:0 0 0 3px rgba(229,192,123,0.2),0 0 0 6px rgba(152,195,121,0.15),0 0 18px 6px rgba(229,192,123,0.2)">
+          🐚
+        </div>
+        <!-- gradient ring overlay = bridge indicator -->
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);width:54px;height:54px;border-radius:50%;border:2px solid transparent;background:linear-gradient(#0a0c12,#0a0c12) padding-box,linear-gradient(135deg,#e5c07b,#98c379) border-box;pointer-events:none"></div>
+        <div class="node-label" style="color:#abb2bf">bash</div>
+      </div>
+
+      <!-- powershell — locked -->
+      <div class="node n-locked" style="left:215px;top:215px">
+        <div class="node-circle" style="width:40px;height:40px">🔒</div>
+        <div class="node-label">powershell</div>
+      </div>
+
+      <!-- bash commands — locked -->
+      <div class="node n-locked" style="left:75px;top:295px">
+        <div class="node-circle" style="width:36px;height:36px;font-size:12px">⌨️</div>
+        <div class="node-label">bash cmds</div>
+      </div>
+
+      <!-- ps commands — locked -->
+      <div class="node n-locked" style="left:215px;top:295px">
+        <div class="node-circle" style="width:36px;height:36px;font-size:12px">⌨️</div>
+        <div class="node-label">ps cmds</div>
+      </div>
+
+      <!-- Bottom detail sheet — bash is selected -->
+      <div class="detail-sheet">
+        <div class="detail-chip">⬡ bridge node — Shell + Git</div>
+        <div class="detail-name">bash</div>
+        <div class="detail-sub">Learned in Shell · also connects Git &amp; GitHub</div>
+        <div class="detail-btn">Continue learning →</div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<p style="font-size:11px;color:#3e4451;margin-top:20px;line-height:1.8">
+  <strong style="color:#636d83">Gradient ring</strong> on a node = bridge node (cross-zone connection, not counted in either zone's progress).<br>
+  <strong style="color:#636d83">Breathing pulse</strong> = available to learn now (try tab-switching and watch the dots).<br>
+  <strong style="color:#636d83">Dashed gradient line</strong> = earned bridge connection to another zone.<br>
+  <strong style="color:#636d83">Bridge pill</strong> on world map header shows total bridges discovered across all zones.
+</p>
+
+</body>
+</html>

@@ -423,3 +423,441 @@ Still a 1-question mini session. Changes:
 - Push notifications / daily reminders
 - Cloud sync or account system
 - Fuzzy matching for fill_blank answers
+
+---
+
+# UI Improvements Spec
+
+## Overview
+
+The current app has no screen transitions, no interactive feedback on tappable elements, an invisible active tab indicator, and several consistency/contrast issues. This section specifies all UI fixes required to make the app feel fluid and polished, benchmarked against Duolingo and Quizlet.
+
+Sixteen issues were identified across four severity levels. All are addressed below.
+
+---
+
+## UI-1. Active Tab Indicator
+
+**Problem:** `.nav-tab--active` only changes text colour from `#5c6370` to `#61afef` — a subtle shift that is nearly invisible at a glance, especially on a dark background.
+
+**Fix:** Three-part active treatment:
+1. **Indicator bar** — 2px line at the top of the active tab, coloured `var(--blue)`
+2. **Icon brightness** — active tab icon rendered at full opacity (`1.0`); inactive at `0.5`
+3. **Label weight** — active label `font-weight: 600`; inactive stays at default
+
+```css
+.nav-tab--active {
+  color: var(--blue);
+  font-weight: 600;
+}
+.nav-tab--active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  width: 80%;
+  height: 2px;
+  background: var(--blue);
+  border-radius: 0 0 2px 2px;
+}
+.nav-tab {
+  position: relative;  /* needed for ::before positioning */
+  opacity: 0.55;
+  transition: opacity 0.2s, color 0.2s;
+}
+.nav-tab--active {
+  opacity: 1;
+}
+```
+
+---
+
+## UI-2. Screen Transitions
+
+**Problem:** Views switch via `display: none` → `display: block` — instant snap with zero animation. Every screen change feels jarring.
+
+**Fix:** Replace the display toggle with an opacity + slight upward translate fade-in. Since `display` cannot be transitioned directly, the approach uses `opacity` and `visibility` with a keyframe animation triggered on `view--active`.
+
+```css
+.view {
+  display: block;          /* always in DOM */
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+.view--active {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  position: relative;
+  animation: viewEnter 0.22s ease-out both;
+}
+@keyframes viewEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+```
+
+Duration: 220ms — fast enough to not feel slow, long enough to feel smooth.
+
+**Router change:** Remove `display` manipulation from router.js entirely — the CSS handles visibility. The `view--active` class is the only toggle needed.
+
+---
+
+## UI-3. Button and Interactive Element Press States
+
+**Problem:** No `:active` state on any interactive element. Tapping a button with zero visual response feels broken on mobile.
+
+**Fix:** Add `:active` states to all tappable elements.
+
+```css
+.btn-primary:active {
+  transform: scale(0.97);
+  filter: brightness(0.9);
+}
+.btn-secondary:active {
+  transform: scale(0.97);
+  background: var(--bg-deep);
+}
+.quiz-option:active {
+  transform: scale(0.98);
+  border-color: var(--blue);
+}
+.concept-card:active {
+  transform: scale(0.96);
+  border-color: var(--border);
+  background: var(--bg-deep);
+}
+.nav-tab:active {
+  opacity: 0.7;
+}
+/* Shared transition for smooth press feel */
+.btn-primary, .btn-secondary, .quiz-option, .concept-card {
+  transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease;
+}
+```
+
+---
+
+## UI-4. Loading State
+
+**Problem:** When a tab is tapped, the view appears while the async DB query runs — leaving a blank dark screen for 50–200ms. No indication anything is happening.
+
+**Fix:** Each view renders a skeleton placeholder immediately on mount, then replaces it with real content once the async data resolves.
+
+Skeleton pattern — added as a utility CSS class:
+
+```css
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-surface) 25%, var(--border) 50%, var(--bg-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+```
+
+Each view renders 2–3 skeleton blocks (matching the rough layout of its content) while awaiting DB data, then swaps them out. This is a JS change per view file — each `renderX` function starts by setting `container.innerHTML` to skeleton HTML before the `await` calls.
+
+---
+
+## UI-5. Nav Tab Icons — Replace Emoji with CSS Icons
+
+**Problem:** Emoji (🏠 🗺️ 📊) render inconsistently across Android versions and have no active/inactive visual variant. They cannot be styled for active state.
+
+**Fix:** Replace emoji with inline SVG icons embedded directly in `index.html`. Use outline style for inactive, filled/coloured for active (controlled entirely by the existing `.nav-tab--active` colour cascade).
+
+Icons to use (simple, universally recognisable):
+- **Home** — house outline → house filled
+- **Concepts** — grid/map outline → grid filled
+- **Progress** — bar chart outline → bar chart filled
+
+SVGs are inlined (no external requests, no icon library dependency). Each icon is ~200 bytes. The active colour is inherited from `.nav-tab--active { color: var(--blue) }` via `fill: currentColor`.
+
+---
+
+## UI-6. Card and List Entrance Animations
+
+**Problem:** Cards just appear. Staggered entrance makes an interface feel alive and gives the eye a clear reading path.
+
+**Fix:** Staggered fade-up animation on card groups. Applied via CSS `animation-delay` using an `nth-child` pattern — no JS needed.
+
+```css
+.card, .concept-card, .quiz-option {
+  animation: cardEnter 0.25s ease-out both;
+}
+.card:nth-child(1), .concept-card:nth-child(1) { animation-delay: 0ms; }
+.card:nth-child(2), .concept-card:nth-child(2) { animation-delay: 40ms; }
+.card:nth-child(3), .concept-card:nth-child(3) { animation-delay: 80ms; }
+.card:nth-child(4), .concept-card:nth-child(4) { animation-delay: 120ms; }
+.card:nth-child(5), .concept-card:nth-child(5) { animation-delay: 160ms; }
+/* beyond 5: no delay (don't animate entire long lists) */
+
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+```
+
+Note: `animation: viewEnter` on `.view--active` already handles the overall screen fade-in. Card stagger adds a secondary layer of motion only on items within view.
+
+---
+
+## UI-7. Quiz Answer Feedback — Scale Animation
+
+**Problem:** Correct/wrong feedback is colour-only. Duolingo bounces correct answers and shakes wrong ones — these micro-animations are a core part of why the app feels rewarding.
+
+**Fix:** Add keyframe animations triggered by the correct/wrong CSS classes.
+
+```css
+.quiz-option--correct {
+  animation: correctPulse 0.35s ease-out both;
+}
+.quiz-option--wrong {
+  animation: wrongShake 0.35s ease-out both;
+}
+@keyframes correctPulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+@keyframes wrongShake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-6px); }
+  40%  { transform: translateX(6px); }
+  60%  { transform: translateX(-4px); }
+  80%  { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+```
+
+---
+
+## UI-8. Progress Bar Entrance Animation
+
+**Problem:** The progress fill jumps to its final value on first render. It should animate in from 0% to communicate the value visually.
+
+**Fix:** The `width` transition already exists (`transition: width 0.3s`). The fix is a JS change: set `width: 0%` first, then set the real width in the next animation frame so the transition fires.
+
+```js
+// In each view that renders a progress bar:
+const fill = container.querySelector('.progress-fill');
+fill.style.width = '0%';
+requestAnimationFrame(() => {
+  fill.style.width = masteryPct + '%';
+});
+```
+
+---
+
+## UI-9. Typography Scale
+
+**Problem:** Only two text sizes are used consistently (`11px` labels, `13–15px` body). Headings are inline-styled across view files with no shared system. No rhythm.
+
+**Fix:** Define a 4-level type scale as CSS custom properties. Remove all inline `font-size` from view files and use these classes instead.
+
+```css
+:root {
+  --text-xs:   11px;   /* labels, chips, metadata */
+  --text-sm:   13px;   /* secondary body, captions */
+  --text-base: 15px;   /* primary body text */
+  --text-lg:   18px;   /* section headings */
+  --text-xl:   22px;   /* screen titles */
+  --text-2xl:  28px;   /* hero numbers (score, mastery %) */
+}
+.text-xs   { font-size: var(--text-xs); }
+.text-sm   { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-lg   { font-size: var(--text-lg); }
+.text-xl   { font-size: var(--text-xl); }
+.text-2xl  { font-size: var(--text-2xl); }
+```
+
+View files replace inline `style="font-size:22px"` etc. with these classes. The scale is not enforced in a single pass — it is applied as each view file is touched during the structured learning implementation.
+
+---
+
+## UI-10. Back Navigation
+
+**Problem:** Learn screen and quiz screen have no back button. The only exit is the Android system back button, which feels incomplete and is not obvious to new users.
+
+**Fix:** Add a back chevron to the screen header in learn.js and quiz.js (and future lesson-plan.js, study-card.js). Tapping it calls `history.back()`.
+
+```html
+<div class="screen-header" style="display:flex;align-items:center;gap:12px;">
+  <button class="back-btn" onclick="history.back()">&#8592;</button>
+  <div><!-- title content --></div>
+</div>
+```
+
+```css
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.back-btn:active {
+  background: var(--bg-deep);
+}
+```
+
+Quiz screen: back button is only shown before the quiz starts (plan preview and study cards). Once the quiz begins, it is replaced by the existing quit-quiz confirm dialog guard in the router.
+
+---
+
+## UI-11. Card Spacing System
+
+**Problem:** `margin-bottom` values of 8px, 10px, 12px, 16px appear inconsistently across the CSS. No grid rhythm.
+
+**Fix:** Standardise on a 4-point grid. Allowed spacing values: 4, 8, 12, 16, 20, 24px. Remove the 10px margins from `.btn-primary` and `.btn-secondary`. Audit all inline `margin`/`padding` in view files during the structured learning implementation pass.
+
+```css
+.btn-primary  { margin-bottom: 12px; }  /* was 10px */
+.btn-secondary { margin-bottom: 12px; } /* was 10px */
+.card          { margin-bottom: 12px; } /* unchanged */
+```
+
+---
+
+## UI-12. Screen Header Enhancement
+
+**Problem:** The gradient `#21252b → #2c313a` is a 6% brightness difference — imperceptible. The header zone lacks visual weight.
+
+**Fix:** Increase contrast and add a subtle bottom border to separate header from content.
+
+```css
+.screen-header {
+  background: var(--bg-deep);          /* solid, not gradient */
+  border-bottom: 1px solid var(--border);
+  padding: 20px 16px 16px;
+  margin: -16px -16px 16px;
+  border-radius: 0 0 14px 14px;
+}
+```
+
+The border gives a clear separation line. Solid `var(--bg-deep)` (`#21252b`) vs page `var(--bg-primary)` (`#282c34`) creates a ~5% contrast that is more readable than the gradient because it is uniform rather than fading.
+
+---
+
+## UI-13. Tappable vs Non-Tappable Cards
+
+**Problem:** On the Progress page, concept cards look identical whether or not they are interactive. Users cannot tell what they can tap.
+
+**Fix:** Add a right-arrow indicator to tappable cards only.
+
+```css
+.card--tappable {
+  cursor: pointer;
+  position: relative;
+}
+.card--tappable::after {
+  content: '›';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 18px;
+}
+.card--tappable:active {
+  background: var(--bg-deep);
+}
+```
+
+Applied to concept cards in the concept map and learn entry points. Non-tappable progress cards (info-only) do not get this class.
+
+---
+
+## UI-14. Semantic Chip Colours
+
+**Problem:** Default `.chip` is always purple, which has no consistent meaning in the app. Purple is used for accent/mastery elsewhere but chips use it as a generic default.
+
+**Fix:** Change the default chip to a neutral grey. Purple chips become explicit opt-in via `.chip--purple`.
+
+```css
+.chip {
+  /* was: purple background/border */
+  background: rgba(171,178,191,0.1);   /* neutral */
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 12px;
+  display: inline-block;
+}
+.chip--purple {
+  background: rgba(198,120,221,0.12);
+  color: var(--purple);
+  border-color: rgba(198,120,221,0.25);
+}
+```
+
+Existing usage of `.chip` for category labels and concept names gets a neutral grey that is semantically neutral. Only mastery/level-related chips use `.chip--purple` explicitly.
+
+---
+
+## UI-15. Text Contrast Fix
+
+**Problem:** `var(--text-muted)` is `#5c6370` on `#282c34` background — contrast ratio ~3.4:1, below WCAG AA minimum of 4.5:1 for normal text. Hard to read outdoors on a phone screen.
+
+**Fix:** Lighten `--text-muted` from `#5c6370` to `#7a8394`.
+
+```css
+:root {
+  --text-muted: #7a8394;   /* was #5c6370 — contrast ratio now ~5.1:1 */
+}
+```
+
+This affects all labels, metadata text, and placeholder text across the app. It is a single token change.
+
+---
+
+## UI-16. Reduce Motion Respect
+
+**Problem:** All animations run unconditionally. Users who have enabled "reduce motion" in Android accessibility settings expect animations to be minimised.
+
+**Fix:** Wrap all keyframe animations and transitions in a media query override.
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+This is a single block at the bottom of `theme.css`. All animations still exist — they are just made imperceptibly short for users who opt out of motion.
+
+---
+
+## UI Files to Modify
+
+| File | Changes |
+|------|---------|
+| `css/theme.css` | UI-1 through UI-16: all CSS changes, type scale variables, new utility classes |
+| `index.html` | UI-5: replace emoji with inline SVG icons in bottom nav |
+| `js/router.js` | UI-2: update view show/hide to use visibility/opacity instead of display |
+| `views/home.js` | UI-4 skeleton, UI-8 progress bar animation, UI-9 type classes |
+| `views/concept-map.js` | UI-4 skeleton, UI-13 tappable card class |
+| `views/learn.js` | UI-10 back button, UI-9 type classes |
+| `views/quiz.js` | UI-10 back button (pre-quiz only), UI-9 type classes |
+| `views/results.js` | UI-8 progress bar animation, UI-9 type classes |
+| `views/progress.js` | UI-13 tappable card class, UI-9 type classes |

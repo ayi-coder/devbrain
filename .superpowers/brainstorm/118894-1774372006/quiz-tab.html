@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevBrain — Quiz Tab Wireframe</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #060810;
+      color: #abb2bf;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 40px 20px 60px;
+      min-height: 100vh;
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .page-header h1 {
+      color: #e5c07b;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .page-header p {
+      color: #4b5263;
+      font-size: 13px;
+    }
+
+    /* ── PHONE FRAME ─────────────────────────────── */
+    .phones-row {
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .phone-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .phone-label {
+      color: #4b5263;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .phone {
+      width: 320px;
+      height: 640px;
+      background: #0d1117;
+      border-radius: 36px;
+      border: 2px solid #1a1e28;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 0 1px #0a0c14, 0 24px 64px rgba(0,0,0,0.7);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* notch */
+    .phone::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 80px; height: 22px;
+      background: #060810;
+      border-radius: 0 0 14px 14px;
+      z-index: 20;
+    }
+
+    /* ── SCREEN CONTENT ──────────────────────────── */
+    .screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* status bar */
+    .status-bar {
+      height: 28px;
+      padding: 8px 20px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .status-bar span { font-size: 10px; color: #abb2bf; font-weight: 600; }
+
+    /* top bar */
+    .top-bar {
+      padding: 6px 20px 10px;
+      flex-shrink: 0;
+    }
+    .top-bar .app-name {
+      font-size: 17px;
+      font-weight: 800;
+      color: #e5c07b;
+    }
+
+    /* scrollable content */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 16px 12px;
+      scrollbar-width: none;
+    }
+    .content::-webkit-scrollbar { display: none; }
+
+    /* ── TAB BAR ─────────────────────────────────── */
+    .tab-bar {
+      height: 62px;
+      background: rgba(13,17,23,0.95);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid #1a1e28;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      flex-shrink: 0;
+      padding-bottom: 6px;
+    }
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .tab-item.active {
+      background: rgba(97,175,239,0.08);
+    }
+    .tab-item svg { width: 22px; height: 22px; }
+    .tab-item span {
+      font-size: 10px;
+      font-weight: 600;
+      color: #3e4451;
+    }
+    .tab-item.active span { color: #61afef; }
+    .tab-item svg path, .tab-item svg rect, .tab-item svg circle, .tab-item svg polygon {
+      fill: none;
+      stroke: #3e4451;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .tab-item.active svg path,
+    .tab-item.active svg rect,
+    .tab-item.active svg circle,
+    .tab-item.active svg polygon {
+      stroke: #61afef;
+      fill: #61afef;
+    }
+    /* Outline tabs - no fill */
+    .tab-item:not(.active) svg path.outline-only,
+    .tab-item:not(.active) svg polygon.outline-only {
+      fill: none;
+    }
+
+    /* ── SESSION BUILDER CARD ────────────────────── */
+    .session-card {
+      background: linear-gradient(135deg, #161d2e, #111620);
+      border: 1px solid rgba(97,175,239,0.2);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+    .session-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .session-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #e5e5e5;
+    }
+    .session-count {
+      font-size: 11px;
+      color: #61afef;
+      font-weight: 600;
+      background: rgba(97,175,239,0.12);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .session-slots {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-height: 34px;
+      margin-bottom: 12px;
+    }
+    .slot-empty {
+      width: 50px;
+      height: 32px;
+      border: 1.5px dashed #1e2535;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slot-empty span { font-size: 16px; color: #1e2535; line-height: 1; }
+    .concept-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #e5e5e5;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .chip-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .chip-remove {
+      color: #4b5263;
+      font-size: 13px;
+      cursor: pointer;
+      line-height: 1;
+      margin-left: 2px;
+    }
+
+    .start-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+    }
+    .start-btn.enabled {
+      background: #61afef;
+      color: #060810;
+    }
+    .start-btn.disabled {
+      background: #1a1e28;
+      color: #3e4451;
+      cursor: not-allowed;
+    }
+
+    /* ── SECTION HEADERS ─────────────────────────── */
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin: 16px 0 10px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #e5e5e5;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .section-sub {
+      font-size: 11px;
+      color: #4b5263;
+    }
+
+    /* ── RECOMMENDED CONCEPT CARDS ───────────────── */
+    .rec-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #111620;
+      border: 1px solid #1a1e28;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+    .rec-card:hover { border-color: rgba(97,175,239,0.3); }
+    .rec-card.added {
+      border-color: rgba(152,195,121,0.4);
+      background: rgba(152,195,121,0.06);
+    }
+    .rec-card.full {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .zone-accent {
+      width: 3px;
+      height: 36px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .rec-info { flex: 1; }
+    .rec-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e5e5e5;
+      margin-bottom: 2px;
+    }
+    .rec-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .zone-name-small {
+      font-size: 10px;
+      color: #4b5263;
+    }
+    .badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-due { background: rgba(229,192,123,0.15); color: #e5c07b; }
+    .badge-new { background: rgba(97,175,239,0.15); color: #61afef; }
+    .badge-overdue { background: rgba(224,108,117,0.15); color: #e06c75; }
+    .add-btn {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid #1e2535;
+      background: none;
+      color: #4b5263;
+      font-size: 18px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-weight: 300;
+    }
+    .rec-card.added .add-btn {
+      border-color: #98c379;
+      color: #98c379;
+    }
+    .added-check { font-size: 13px; }
+
+    /* ── DUE FOR REVIEW ROWS ─────────────────────── */
+    .review-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #111620;
+      border: 1px solid #1a1e28;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .days-badge {
+      font-size: 10px;
+      font-weight: 800;
+      min-width: 30px;
+      text-align: center;
+      padding: 3px 5px;
+      border-radius: 6px;
+    }
+    .days-red { background: rgba(224,108,117,0.18); color: #e06c75; }
+    .days-orange { background: rgba(209,154,102,0.18); color: #d19a66; }
+    .days-yellow { background: rgba(229,192,123,0.18); color: #e5c07b; }
+
+    .review-name {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 600;
+      color: #abb2bf;
+    }
+    .zone-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .review-add {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      border: 1.5px solid #1e2535;
+      background: none;
+      color: #4b5263;
+      font-size: 16px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ── EMPTY STATE ─────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 32px 20px;
+      color: #3e4451;
+    }
+    .empty-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.5; }
+    .empty-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #4b5263; }
+    .empty-sub { font-size: 11px; line-height: 1.5; }
+
+    /* ── QUIZ ACTIVE SCREEN ──────────────────────── */
+    .quiz-top-bar {
+      padding: 8px 16px 10px;
+      flex-shrink: 0;
+    }
+    .quiz-progress-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .quiz-back {
+      font-size: 18px;
+      color: #61afef;
+      line-height: 1;
+    }
+    .quiz-progress-track {
+      flex: 1;
+      height: 4px;
+      background: #1a1e28;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .quiz-progress-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #61afef, #56b6c2);
+    }
+    .quiz-count { font-size: 11px; color: #4b5263; white-space: nowrap; }
+
+    .quiz-concept-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 5px;
+      background: rgba(229,192,123,0.12);
+      color: #e5c07b;
+      margin-bottom: 2px;
+    }
+
+    .quiz-content { flex: 1; padding: 0 16px 12px; overflow-y: auto; }
+    .quiz-question-type {
+      font-size: 10px;
+      font-weight: 700;
+      color: #4b5263;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    .quiz-question {
+      font-size: 16px;
+      font-weight: 700;
+      color: #e5e5e5;
+      line-height: 1.4;
+      margin-bottom: 20px;
+    }
+    .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+    .quiz-option {
+      padding: 11px 14px;
+      background: #111620;
+      border: 1.5px solid #1a1e28;
+      border-radius: 10px;
+      font-size: 12px;
+      color: #abb2bf;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .quiz-option.correct {
+      border-color: #98c379;
+      background: rgba(152,195,121,0.1);
+      color: #98c379;
+    }
+    .quiz-option.wrong {
+      border-color: #e06c75;
+      background: rgba(224,108,117,0.08);
+      color: #e06c75;
+    }
+    .quiz-option.selected {
+      border-color: #61afef;
+      background: rgba(97,175,239,0.08);
+      color: #61afef;
+    }
+
+    .next-btn {
+      margin-top: 16px;
+      width: 100%;
+      padding: 11px;
+      border-radius: 10px;
+      border: none;
+      background: #61afef;
+      color: #060810;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* session concepts mini bar (during quiz) */
+    .session-mini {
+      display: flex;
+      gap: 5px;
+      padding: 8px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      flex-shrink: 0;
+      border-bottom: 1px solid #1a1e28;
+    }
+    .session-mini::-webkit-scrollbar { display: none; }
+    .mini-pill {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1.5px solid;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .mini-pill.current {
+      opacity: 1;
+      background: rgba(229,192,123,0.1);
+    }
+    .mini-pill.done { opacity: 0.4; }
+    .mini-pill.upcoming { opacity: 0.25; }
+
+    /* ── FLOW LABEL ──────────────────────────────── */
+    .flow-section {
+      margin-top: 48px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .flow-title {
+      color: #e5c07b;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .flow-card {
+      background: #0d1117;
+      border: 1px solid #1a1e28;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .flow-card-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #61afef;
+      margin-bottom: 6px;
+    }
+    .flow-card p {
+      font-size: 11px;
+      color: #4b5263;
+      line-height: 1.6;
+    }
+    .flow-card p strong { color: #abb2bf; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>DevBrain — Quiz Tab</h1>
+  <p>Dedicated practice hub · session builder + SRS recommender · 4-tab navigation</p>
+</div>
+
+<div class="phones-row">
+
+  <!-- ════════════════════════════════════════════
+       PHONE 1 — Quiz tab, empty session
+  ═══════════════════════════════════════════════ -->
+  <div class="phone-wrap">
+    <div class="phone-label">Quiz tab · empty session</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>●●● ▌ 🔋</span>
+        </div>
+        <div class="top-bar">
+          <div class="app-name">DevBrain</div>
+        </div>
+
+        <div class="content">
+          <!-- Session builder — empty -->
+          <div class="session-card">
+            <div class="session-header">
+              <div class="session-title">Your session</div>
+              <div class="session-count">0 / 5</div>
+            </div>
+            <div class="session-slots">
+              <div class="slot-empty"><span>+</span></div>
+              <div class="slot-empty"><span>+</span></div>
+              <div class="slot-empty"><span>+</span></div>
+              <div class="slot-empty"><span>+</span></div>
+              <div class="slot-empty"><span>+</span></div>
+            </div>
+            <button class="start-btn disabled">Start Quiz →</button>
+          </div>
+
+          <!-- Recommended today -->
+          <div class="section-header">
+            <span class="section-title">Recommended today</span>
+            <span class="section-sub">due now</span>
+          </div>
+
+          <div class="rec-card">
+            <div class="zone-accent" style="background:#e5c07b;"></div>
+            <div class="rec-info">
+              <div class="rec-name">mkdir</div>
+              <div class="rec-meta">
+                <span class="zone-name-small">Shell &amp; Terminal</span>
+                <span class="badge badge-due">Due</span>
+              </div>
+            </div>
+            <button class="add-btn">+</button>
+          </div>
+
+          <div class="rec-card">
+            <div class="zone-accent" style="background:#e06c75;"></div>
+            <div class="rec-info">
+              <div class="rec-name">git commit</div>
+              <div class="rec-meta">
+                <span class="zone-name-small">Git &amp; GitHub</span>
+                <span class="badge badge-due">Due</span>
+              </div>
+            </div>
+            <button class="add-btn">+</button>
+          </div>
+
+          <div class="rec-card">
+            <div class="zone-accent" style="background:#61afef;"></div>
+            <div class="rec-info">
+              <div class="rec-name">HTTP methods</div>
+              <div class="rec-meta">
+                <span class="zone-name-small">The Web</span>
+                <span class="badge badge-new">New</span>
+              </div>
+            </div>
+            <button class="add-btn">+</button>
+          </div>
+
+          <!-- Due for review -->
+          <div class="section-header">
+            <span class="section-title">Due for review</span>
+            <span class="section-sub">SRS recommender</span>
+          </div>
+
+          <div class="review-row">
+            <div class="days-badge days-red">14d</div>
+            <div class="zone-dot" style="background:#c678dd;"></div>
+            <div class="review-name">File permissions</div>
+            <button class="review-add">+</button>
+          </div>
+          <div class="review-row">
+            <div class="days-badge days-red">11d</div>
+            <div class="zone-dot" style="background:#e5c07b;"></div>
+            <div class="review-name">stdin / stdout</div>
+            <button class="review-add">+</button>
+          </div>
+          <div class="review-row">
+            <div class="days-badge days-orange">8d</div>
+            <div class="zone-dot" style="background:#56b6c2;"></div>
+            <div class="review-name">package.json</div>
+            <button class="review-add">+</button>
+          </div>
+          <div class="review-row">
+            <div class="days-badge days-orange">7d</div>
+            <div class="zone-dot" style="background:#e06c75;"></div>
+            <div class="review-name">git branch</div>
+            <button class="review-add">+</button>
+          </div>
+          <div class="review-row">
+            <div class="days-badge days-yellow">5d</div>
+            <div class="zone-dot" style="background:#98c379;"></div>
+            <div class="review-name">Variable scope</div>
+            <button class="review-add">+</button>
+          </div>
+        </div>
+
+        <!-- 4-tab bar -->
+        <div class="tab-bar">
+          <!-- Home -->
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24">
+              <path class="outline-only" d="M3 12L12 4l9 8v8a1 1 0 01-1 1H5a1 1 0 01-1-1v-8z"/>
+              <path class="outline-only" d="M9 21v-8h6v8"/>
+            </svg>
+            <span>Home</span>
+          </div>
+          <!-- Curriculum -->
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24">
+              <path class="outline-only" d="M4 6h16M4 12h16M4 18h10"/>
+            </svg>
+            <span>Curriculum</span>
+          </div>
+          <!-- Map -->
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24">
+              <polygon class="outline-only" points="3,7 9,4 15,7 21,4 21,17 15,20 9,17 3,20"/>
+              <path class="outline-only" d="M9 4v13M15 7v13"/>
+            </svg>
+            <span>Map</span>
+          </div>
+          <!-- Quiz — active -->
+          <div class="tab-item active">
+            <svg viewBox="0 0 24 24">
+              <path d="M13 3L4 14h7l-1 7 9-11h-7l1-7z"/>
+            </svg>
+            <span>Quiz</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       PHONE 2 — Quiz tab, session building (3/5)
+  ═══════════════════════════════════════════════ -->
+  <div class="phone-wrap">
+    <div class="phone-label">Quiz tab · 3 concepts selected</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>●●● ▌ 🔋</span>
+        </div>
+        <div class="top-bar">
+          <div class="app-name">DevBrain</div>
+        </div>
+
+        <div class="content">
+          <!-- Session builder — 3 selected -->
+          <div class="session-card">
+            <div class="session-header">
+              <div class="session-title">Your session</div>
+              <div class="session-count">3 / 5</div>
+            </div>
+            <div class="session-slots">
+              <div class="concept-chip">
+                <div class="chip-dot" style="background:#e5c07b;"></div>
+                mkdir
+                <span class="chip-remove">×</span>
+              </div>
+              <div class="concept-chip">
+                <div class="chip-dot" style="background:#e06c75;"></div>
+                git commit
+                <span class="chip-remove">×</span>
+              </div>
+              <div class="concept-chip">
+                <div class="chip-dot" style="background:#e5c07b;"></div>
+                stdin
+                <span class="chip-remove">×</span>
+              </div>
+              <div class="slot-empty"><span>+</span></div>
+              <div class="slot-empty"><span>+</span></div>
+            </div>
+            <button class="start-btn enabled">Start Quiz →</button>
+          </div>
+
+          <!-- Recommended today -->
+          <div class="section-header">
+            <span class="section-title">Recommended today</span>
+            <span class="section-sub">due now</span>
+          </div>
+
+          <div class="rec-card added">
+            <div class="zone-accent" style="background:#e5c07b;"></div>
+            <div class="rec-info">
+              <div class="rec-name">mkdir</div>
+              <div class="rec-meta">
+                <span class="zone-name-small">Shell &amp; Terminal</span>
+                <span class="badge badge-due">Due</span>
+              </div>
+            </div>
+            <button class="add-btn"><span class="added-check">✓</span></button>
+          </div>
+
+          <div class="rec-card added">
+            <div class="zone-accent" style="background:#e06c75;"></div>
+            <div class="rec-info">
+              <div class="rec-name">git commit</div>
+              <div class="rec-meta">
+                <span class="zone-name-small">Git &amp; GitHub</span>
+                <span class="badge badge-due">Due</span>
+              </div>
+            </div>
+            <button class="add-btn"><span class="added-check">✓</span></button>
+          </div>
+
+          <div class="rec-card">
+            <div class="zone-accent" style="background:#61afef;"></div>
+            <div class="rec-info">
+              <div class="rec-name">HTTP methods</div>
+              <div class="rec-meta">
+                <span class="zone-name-small">The Web</span>
+                <span class="badge badge-new">New</span>
+              </div>
+            </div>
+            <button class="add-btn">+</button>
+          </div>
+
+          <!-- Due for review -->
+          <div class="section-header">
+            <span class="section-title">Due for review</span>
+            <span class="section-sub">SRS recommender</span>
+          </div>
+
+          <div class="review-row" style="border-color:rgba(224,108,117,0.25);background:rgba(224,108,117,0.04);">
+            <div class="days-badge days-red">14d</div>
+            <div class="zone-dot" style="background:#c678dd;"></div>
+            <div class="review-name">File permissions</div>
+            <button class="review-add">+</button>
+          </div>
+          <div class="review-row" style="border-color:rgba(229,192,123,0.3);background:rgba(229,192,123,0.05);">
+            <div class="days-badge days-red">11d</div>
+            <div class="zone-dot" style="background:#e5c07b;"></div>
+            <div class="review-name" style="text-decoration:line-through;opacity:0.4;">stdin / stdout</div>
+            <button class="review-add" style="color:#98c379;border-color:#98c379;">✓</button>
+          </div>
+          <div class="review-row">
+            <div class="days-badge days-orange">8d</div>
+            <div class="zone-dot" style="background:#56b6c2;"></div>
+            <div class="review-name">package.json</div>
+            <button class="review-add">+</button>
+          </div>
+          <div class="review-row">
+            <div class="days-badge days-orange">7d</div>
+            <div class="zone-dot" style="background:#e06c75;"></div>
+            <div class="review-name">git branch</div>
+            <button class="review-add">+</button>
+          </div>
+        </div>
+
+        <div class="tab-bar">
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24">
+              <path class="outline-only" d="M3 12L12 4l9 8v8a1 1 0 01-1 1H5a1 1 0 01-1-1v-8z"/>
+              <path class="outline-only" d="M9 21v-8h6v8"/>
+            </svg>
+            <span>Home</span>
+          </div>
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24">
+              <path class="outline-only" d="M4 6h16M4 12h16M4 18h10"/>
+            </svg>
+            <span>Curriculum</span>
+          </div>
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24">
+              <polygon class="outline-only" points="3,7 9,4 15,7 21,4 21,17 15,20 9,17 3,20"/>
+              <path class="outline-only" d="M9 4v13M15 7v13"/>
+            </svg>
+            <span>Map</span>
+          </div>
+          <div class="tab-item active">
+            <svg viewBox="0 0 24 24">
+              <path d="M13 3L4 14h7l-1 7 9-11h-7l1-7z"/>
+            </svg>
+            <span>Quiz</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       PHONE 3 — Active quiz question
+  ═══════════════════════════════════════════════ -->
+  <div class="phone-wrap">
+    <div class="phone-label">Active quiz · multiple choice</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>●●● ▌ 🔋</span>
+        </div>
+
+        <div class="quiz-top-bar">
+          <div class="quiz-progress-row">
+            <span class="quiz-back">←</span>
+            <div class="quiz-progress-track">
+              <div class="quiz-progress-fill" style="width:40%;"></div>
+            </div>
+            <span class="quiz-count">4 / 9</span>
+          </div>
+          <div class="quiz-concept-label">
+            <div class="chip-dot" style="background:#e5c07b;width:5px;height:5px;"></div>
+            mkdir · Shell &amp; Terminal
+          </div>
+        </div>
+
+        <!-- Concept mini-bar -->
+        <div class="session-mini">
+          <div class="mini-pill done" style="border-color:#e5c07b;color:#e5c07b;">mkdir</div>
+          <div class="mini-pill current" style="border-color:#e06c75;color:#e06c75;">git commit</div>
+          <div class="mini-pill upcoming" style="border-color:#e5c07b;color:#e5c07b;">stdin</div>
+        </div>
+
+        <div class="quiz-content">
+          <div class="quiz-question-type">Definition · Tier 1</div>
+          <div class="quiz-question">What does the <code style="background:#1a1e28;padding:2px 6px;border-radius:4px;color:#98c379;">mkdir</code> command do?</div>
+
+          <div class="quiz-options">
+            <div class="quiz-option">Moves a file from one directory to another</div>
+            <div class="quiz-option correct">Creates a new directory (folder)</div>
+            <div class="quiz-option">Lists the contents of a directory</div>
+            <div class="quiz-option">Deletes an empty directory</div>
+          </div>
+
+          <button class="next-btn">Next →</button>
+
+          <!-- Result feedback -->
+          <div style="margin-top:12px;padding:10px 12px;background:rgba(152,195,121,0.08);border:1px solid rgba(152,195,121,0.2);border-radius:10px;">
+            <div style="font-size:12px;font-weight:700;color:#98c379;margin-bottom:3px;">Correct ✓</div>
+            <div style="font-size:11px;color:#4b5263;line-height:1.5;">Use it when you need to create a folder from the terminal. <code style="color:#e5c07b;background:#1a1e28;padding:1px 4px;border-radius:3px;">mkdir my-project</code></div>
+          </div>
+        </div>
+
+        <div class="tab-bar">
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24">
+              <path class="outline-only" d="M3 12L12 4l9 8v8a1 1 0 01-1 1H5a1 1 0 01-1-1v-8z"/>
+              <path class="outline-only" d="M9 21v-8h6v8"/>
+            </svg>
+            <span>Home</span>
+          </div>
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24">
+              <path class="outline-only" d="M4 6h16M4 12h16M4 18h10"/>
+            </svg>
+            <span>Curriculum</span>
+          </div>
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24">
+              <polygon class="outline-only" points="3,7 9,4 15,7 21,4 21,17 15,20 9,17 3,20"/>
+              <path class="outline-only" d="M9 4v13M15 7v13"/>
+            </svg>
+            <span>Map</span>
+          </div>
+          <div class="tab-item active">
+            <svg viewBox="0 0 24 24">
+              <path d="M13 3L4 14h7l-1 7 9-11h-7l1-7z"/>
+            </svg>
+            <span>Quiz</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /phones-row -->
+
+<!-- Flow notes -->
+<div class="flow-section">
+  <div class="flow-title">Design decisions & interaction notes</div>
+  <div class="flow-grid">
+
+    <div class="flow-card">
+      <div class="flow-card-title">4-tab navigation</div>
+      <p>Tab bar expands to <strong>Home · Curriculum · Map · Quiz</strong>. Lightning bolt icon for Quiz (filled when active). Home hero card retains "N due today" count but tapping it navigates to the Quiz tab — it no longer launches directly.</p>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-card-title">Session builder (max 5)</div>
+      <p>User taps concept cards to add them to the 5-slot session builder. Slots show as dashed "+" placeholders when empty. Chips appear with a × to remove. <strong>Start Quiz</strong> button is disabled until ≥1 concept selected. At 5/5, remaining cards dim with "session full" state.</p>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-card-title">Two recommendation sections</div>
+      <p><strong>Recommended today</strong> — SRS engine output, concepts due or new, shown as cards with zone color bar.<br><strong>Due for review</strong> — overdue concepts sorted by staleness, shown as compact rows with red/orange/yellow day badges.</p>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-card-title">Concept mini-bar during quiz</div>
+      <p>A horizontal scroll strip below the progress bar shows all concepts in the session as pills: <strong>done</strong> (dim), <strong>current</strong> (highlighted in zone color), <strong>upcoming</strong> (faded). Gives a sense of position without showing exact question counts.</p>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-card-title">Map tab — quiz removed</div>
+      <p>The bottom sheet when tapping a concept node now shows concept info + "Add to Quiz session →" which deep-links to the Quiz tab with that concept pre-loaded. The "Start Quiz →" button is removed from the map bottom sheet entirely.</p>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-card-title">Lesson screen shortcut</div>
+      <p>The Curriculum lesson screen replaces "Quiz this concept →" with <strong>"Add to Quiz session →"</strong> — this deep-links to the Quiz tab and pre-loads the concept into the session builder slot. User still has to tap Start — they keep agency over their session.</p>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-card-title">Empty state (new users)</div>
+      <p>If user has zero discovered concepts, the entire recommendations area shows: <em>"Explore the map first — concepts you discover will appear here."</em> The session builder still renders so the layout doesn't jump when concepts are added.</p>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-card-title">Bridge node deduplication</div>
+      <p>Bridge nodes (e.g. <em>stdin</em>) appear once in the SRS list regardless of how many zones they belong to. Adding one to a session adds it once. The SRS score is updated once on completion.</p>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

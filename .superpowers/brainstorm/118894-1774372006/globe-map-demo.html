@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DevBrain — Globe Map</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #060810;
+  display: flex; flex-direction: column; align-items: center;
+  min-height: 100vh; padding: 20px 0 40px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.demo-label {
+  color: #4b5263; font-size: 11px; margin-bottom: 12px;
+  text-align: center; line-height: 1.6;
+}
+.demo-label strong { color: #636d83; }
+
+/* PHONE */
+.phone {
+  width: 340px; height: 720px;
+  background: #04060c; border-radius: 44px;
+  border: 2px solid #2c313a;
+  box-shadow: 0 0 0 1px #1a1e28, 0 30px 80px rgba(0,0,0,0.9);
+  overflow: hidden; position: relative;
+  display: flex; flex-direction: column;
+}
+
+/* HEADER */
+.map-header {
+  padding: 16px 18px 10px;
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-shrink: 0; position: relative; z-index: 10;
+  background: linear-gradient(to bottom, rgba(4,6,12,0.98), transparent);
+}
+.hdr-title { font-size: 16px; font-weight: 700; color: #e5e9f0; }
+.hdr-sub   { font-size: 10px; color: #4b5263; }
+.hdr-zoom-hint {
+  font-size: 9px; color: #3e4451;
+  background: #111620; border: 1px solid #1a1e28;
+  border-radius: 6px; padding: 3px 8px;
+}
+
+/* GLOBE WRAPPER */
+.globe-wrap {
+  flex: 1; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 45% 40%, #0a1020 0%, #04060c 70%);
+}
+
+/* STARS */
+.star-bg { position: absolute; inset: 0; pointer-events: none; }
+.st {
+  position: absolute; background: #fff; border-radius: 50%;
+  animation: tw var(--d,3s) ease-in-out infinite var(--dl,0s);
+}
+@keyframes tw { 0%,100%{opacity:var(--lo,.1)} 50%{opacity:var(--hi,.4)} }
+
+/* GLOBE SVG */
+#globe-svg {
+  width: 310px; height: 310px;
+  overflow: visible;
+  touch-action: none;
+  cursor: grab;
+}
+#globe-svg:active { cursor: grabbing; }
+
+/* ATMOSPHERE OVERLAY */
+.atmosphere {
+  position: absolute;
+  width: 310px; height: 310px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+    transparent 60%,
+    rgba(70,140,220,0.04) 72%,
+    rgba(70,140,220,0.12) 82%,
+    rgba(60,120,200,0.28) 91%,
+    rgba(50,100,180,0.55) 96%,
+    rgba(40,80,160,0.85) 100%);
+  pointer-events: none;
+  box-shadow: 0 0 40px rgba(60,120,220,0.3), 0 0 80px rgba(40,80,160,0.15);
+}
+
+/* LOD transitions */
+.subcat-region { transition: opacity 0.4s ease; }
+.concept-node  { transition: opacity 0.4s ease; }
+.zone-label    { transition: opacity 0.3s ease; }
+.subcat-label  { transition: opacity 0.3s ease; }
+
+/* Concept node glow pulse */
+.c-done { animation: cglow 2.8s ease-in-out infinite; }
+@keyframes cglow {
+  0%,100% { filter: drop-shadow(0 0 2px var(--nc)) drop-shadow(0 0 5px var(--nc2)); }
+  50%      { filter: drop-shadow(0 0 5px var(--nc)) drop-shadow(0 0 12px var(--nc2)); }
+}
+
+/* BOTTOM NAV */
+.bnav {
+  display: flex; justify-content: space-around; align-items: center;
+  border-top: 1px solid #1a1e28; padding: 10px 0 14px;
+  background: rgba(4,6,12,0.97); backdrop-filter: blur(16px);
+  flex-shrink: 0; z-index: 10;
+}
+.ni {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 9px; color: #3e4451; cursor: pointer;
+  padding: 5px 14px; border-radius: 10px; user-select: none;
+}
+.ni.active { color: #61afef; background: rgba(97,175,239,0.1); }
+.ni svg { display: block; }
+
+/* BOTTOM SHEET */
+.sheet-backdrop {
+  position: absolute; inset: 0; z-index: 30;
+  background: rgba(0,0,0,0); pointer-events: none;
+  transition: background 0.3s;
+}
+.sheet-backdrop.on { background: rgba(0,0,0,0.6); pointer-events: all; }
+.bottom-sheet {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: #0d1018; border: 1px solid #2c313a; border-bottom: none;
+  border-radius: 20px 20px 0 0; padding: 0 18px 22px;
+  z-index: 40; transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
+}
+.bottom-sheet.on { transform: translateY(0); }
+.bs-handle { width: 36px; height: 3px; background: #3e4451; border-radius: 2px; margin: 12px auto 14px; }
+.bs-tag   { display: inline-block; font-size: 9px; padding: 2px 8px; border-radius: 10px; border: 1px solid; margin-bottom: 6px; }
+.bs-name  { font-size: 17px; font-weight: 700; color: #e5e9f0; margin-bottom: 4px; }
+.bs-zone  { font-size: 10px; color: #4b5263; margin-bottom: 12px; }
+.bs-def   {
+  background: #131720; border: 1px solid #1a1e28; border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 12px;
+  font-size: 11px; color: #8b9199; line-height: 1.6;
+}
+.bs-quiz {
+  background: rgba(97,175,239,0.12); border: 1px solid rgba(97,175,239,0.3);
+  border-radius: 10px; padding: 10px; text-align: center;
+  font-size: 12px; font-weight: 700; color: #61afef; cursor: pointer;
+}
+
+/* ZOOM CONTROLS (desktop helper) */
+.zoom-controls {
+  position: absolute; right: 12px; bottom: 72px; z-index: 15;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.zc-btn {
+  width: 28px; height: 28px; background: rgba(30,34,39,0.9);
+  border: 1px solid #2c313a; border-radius: 7px;
+  color: #636d83; font-size: 16px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none; transition: background 0.15s;
+}
+.zc-btn:active { background: #2c313a; }
+
+/* LOD indicator */
+.lod-badge {
+  position: absolute; left: 12px; bottom: 72px; z-index: 15;
+  background: rgba(13,15,20,0.85); border: 1px solid #1a1e28;
+  border-radius: 8px; padding: 5px 9px;
+  font-size: 9px; color: #4b5263;
+}
+.lod-badge strong { color: #61afef; }
+</style>
+</head>
+<body>
+
+<div class="demo-label">
+  <strong>Globe Map — Wire frame</strong><br>
+  Scroll wheel / pinch to zoom · Drag to pan · Tap a glowing node
+</div>
+
+<div class="phone">
+  <div class="map-header">
+    <div>
+      <div class="hdr-title">Map</div>
+      <div class="hdr-sub" id="lod-text">Zoomed out — all zones visible</div>
+    </div>
+    <div class="hdr-zoom-hint">Pinch or scroll to zoom</div>
+  </div>
+
+  <div class="globe-wrap" id="globe-wrap">
+    <div class="star-bg" id="star-bg"></div>
+    <svg id="globe-svg" viewBox="0 0 500 500">
+      <defs>
+        <clipPath id="globe-clip">
+          <circle cx="250" cy="250" r="218"/>
+        </clipPath>
+        <radialGradient id="space-grad" cx="45%" cy="40%">
+          <stop offset="0%"   stop-color="#0c1428"/>
+          <stop offset="60%"  stop-color="#060c18"/>
+          <stop offset="100%" stop-color="#030508"/>
+        </radialGradient>
+      </defs>
+      <!-- space background -->
+      <circle cx="250" cy="250" r="218" fill="url(#space-grad)"/>
+      <!-- all content clipped to globe circle -->
+      <g id="globe-g" clip-path="url(#globe-clip)"></g>
+    </svg>
+    <div class="atmosphere"></div>
+
+    <!-- zoom controls (desktop helper) -->
+    <div class="zoom-controls">
+      <div class="zc-btn" id="btn-zoom-in">+</div>
+      <div class="zc-btn" id="btn-zoom-out">−</div>
+      <div class="zc-btn" id="btn-reset" style="font-size:11px">⌂</div>
+    </div>
+    <div class="lod-badge" id="lod-badge"><strong>×1</strong> zones</div>
+  </div>
+
+  <!-- bottom sheet -->
+  <div class="sheet-backdrop" id="sheet-bg" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="sheet">
+    <div class="bs-handle"></div>
+    <div class="bs-tag" id="bs-tag"></div>
+    <div class="bs-name" id="bs-name"></div>
+    <div class="bs-zone" id="bs-zone"></div>
+    <div class="bs-def"  id="bs-def"></div>
+    <div class="bs-quiz" onclick="closeSheet()">Quiz this concept →</div>
+  </div>
+
+  <div class="bnav">
+    <div class="ni">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+      <span>Home</span>
+    </div>
+    <div class="ni">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/></svg>
+      <span>Curriculum</span>
+    </div>
+    <div class="ni active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="1,6 1,22 8,18 16,22 23,18 23,2 16,6 8,2"/></svg>
+      <span>Map</span>
+    </div>
+  </div>
+</div>
+
+<!-- D3 for zoom/pan -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════
+const ZONES = [
+  {
+    id:'machine', name:'Your Machine', color:'#c678dd',
+    glow:'rgba(198,120,221,0.7)', glow2:'rgba(198,120,221,0.3)',
+    // Blob points — organic polygon in 500×500 space (circle r=218 cx=250 cy=250)
+    blob:[[80,105],[155,72],[220,88],[248,145],[215,185],[155,192],[100,178],[72,140]],
+    centroid:[162,138],
+    subcats:[
+      { name:'OS',         cx:138, cy:118, r:38 },
+      { name:'File System',cx:195, cy:158, r:32 },
+      { name:'Sys Concepts',cx:140,cy:168, r:30 },
+    ],
+    concepts:[
+      {name:'OS',          x:122,y:103,state:'done',  def:'The software that manages your computer\'s hardware and runs your programs. Windows, macOS, and Linux are all operating systems.'},
+      {name:'kernel',      x:152,y:96, state:'done',  def:'The core of an OS — it controls hardware access, memory, and runs processes. Everything else runs on top of it.'},
+      {name:'process',     x:178,y:114,state:'review',def:'Any program currently running on your computer. Opening Chrome creates a process; running a script creates another.'},
+      {name:'file path',   x:188,y:150,state:'done',  def:'The address of a file on disk. /home/user/projects/app.js is a path. It tells the OS exactly where to find something.'},
+      {name:'directory',   x:208,y:168,state:'new',   def:'A folder. Directories hold files and other directories, creating a tree structure on your drive.'},
+      {name:'permissions', x:165,y:175,state:'locked',def:'Rules controlling who can read, write, or execute a file. Linux uses rwx notation. chmod changes them.'},
+      {name:'RAM',         x:142,y:158,state:'locked',def:'Memory your computer uses right now. Programs load into RAM to run fast. More RAM = more programs simultaneously.'},
+    ]
+  },
+  {
+    id:'git', name:'Git & GitHub', color:'#e06c75',
+    glow:'rgba(224,108,117,0.7)', glow2:'rgba(224,108,117,0.3)',
+    blob:[[278,75],[360,58],[432,95],[442,152],[392,178],[328,172],[285,148],[268,110]],
+    centroid:[355,125],
+    subcats:[
+      { name:'Core Git',   cx:330,cy:108, r:38 },
+      { name:'Commands',   cx:390,cy:138, r:35 },
+      { name:'GitHub',     cx:350,cy:162, r:30 },
+    ],
+    concepts:[
+      {name:'Git',         x:302,y:92, state:'done',  def:'Version control system. Tracks every change you make to files so you can go back in time, branch off, and merge work.'},
+      {name:'repo',        x:338,y:82, state:'done',  def:'A repository — the folder Git tracks. Contains all your files plus the hidden .git folder with the full change history.'},
+      {name:'commit',      x:320,y:112,state:'done',  def:'A saved snapshot of your files at a point in time. Like a checkpoint in a game — you can always return here.'},
+      {name:'branch',      x:358,y:96, state:'review',def:'A parallel version of your code. Make changes on a branch without affecting main. Merge it back when ready.'},
+      {name:'git push',    x:390,y:118,state:'review',def:'Uploads your local commits to GitHub. Others can then see and pull your changes.'},
+      {name:'pull req',    x:368,y:148,state:'new',   def:'A request to merge your branch into main on GitHub. Others review your code before it\'s accepted.'},
+      {name:'git clone',   x:330,y:158,state:'locked',def:'Downloads a remote repository to your machine. git clone <url> gives you a full local copy.'},
+    ]
+  },
+  {
+    id:'shell', name:'Shell & Terminal', color:'#e5c07b',
+    glow:'rgba(229,192,123,0.75)', glow2:'rgba(229,192,123,0.3)',
+    blob:[[45,192],[128,168],[165,205],[168,278],[132,318],[75,325],[42,292],[35,242]],
+    centroid:[105,250],
+    subcats:[
+      { name:'Core',       cx:100,cy:205, r:35 },
+      { name:'Bash Cmds',  cx:118,cy:268, r:38 },
+      { name:'Scripting',  cx:88, cy:300, r:28 },
+    ],
+    concepts:[
+      {name:'shell',       x:75, y:188,state:'done',  def:'A program that takes text commands and runs them. Bash is the most common shell. It\'s how you talk to your OS without a mouse.'},
+      {name:'terminal',    x:112,y:178,state:'done',  def:'The app window that runs a shell. Terminal, iTerm2, Windows Terminal — they\'re the container; bash is what runs inside.'},
+      {name:'bash',        x:98, y:205,state:'done',  def:'The most common Unix shell. When you open a terminal and type commands, you\'re almost certainly using bash.'},
+      {name:'echo',        x:128,y:228,state:'done',  def:'Prints text to the terminal. echo "hello" outputs hello. Useful for debugging and displaying variable values.'},
+      {name:'ls',          x:105,y:248,state:'done',  def:'Lists files in a directory. ls shows names; ls -la shows everything including hidden files and permissions.'},
+      {name:'cd',          x:132,y:265,state:'done',  def:'Change directory. cd projects moves you into the projects folder. cd .. goes up one level. cd ~ goes home.'},
+      {name:'mkdir',       x:118,y:285,state:'review',def:'Make directory. mkdir my-app creates a new folder named my-app in your current location.'},
+      {name:'grep',        x:98, y:300,state:'new',   def:'Searches file contents for a pattern. grep "error" app.log finds every line containing "error". Extremely useful.'},
+      {name:'stdin/out',   x:148,y:198,state:'new',   def:'Standard input/output — the text streams programs read from and write to. Pipes (|) connect stdout of one program to stdin of another.',bridge:true,bz:['shell','web']},
+      {name:'env var',     x:72, y:310,state:'locked',def:'Variables stored in your shell environment. PATH, HOME, NODE_ENV. Programs read these at runtime. Set with export NAME=value.',bridge:true,bz:['shell','packages']},
+    ]
+  },
+  {
+    id:'web', name:'The Web', color:'#61afef',
+    glow:'rgba(97,175,239,0.7)', glow2:'rgba(97,175,239,0.3)',
+    blob:[[348,188],[418,175],[458,228],[448,295],[395,322],[348,308],[330,265],[332,218]],
+    centroid:[392,252],
+    subcats:[
+      { name:'How Web Works', cx:385,cy:222, r:35 },
+      { name:'APIs & Data',   cx:408,cy:270, r:32 },
+      { name:'Security',      cx:368,cy:295, r:28 },
+    ],
+    concepts:[
+      {name:'HTTP',        x:362,y:198,state:'done',  def:'HyperText Transfer Protocol — the rules for sending web pages. Your browser says GET /page and the server responds with HTML.'},
+      {name:'URL',         x:398,y:188,state:'done',  def:'Uniform Resource Locator — the address of a web resource. https://example.com/page breaks into protocol, domain, and path.'},
+      {name:'DNS',         x:378,y:218,state:'new',   def:'Domain Name System — the internet\'s phonebook. Converts example.com into the IP address 93.184.216.34 so your browser can connect.'},
+      {name:'API',         x:418,y:248,state:'locked',def:'Application Programming Interface — a way for programs to talk to each other. A weather API lets your app request forecast data.'},
+      {name:'JSON',        x:402,y:272,state:'locked',def:'JavaScript Object Notation — the most common format for sending data between a server and client. Looks like a JS object: {"key":"value"}.'},
+      {name:'REST',        x:428,y:268,state:'locked',def:'An architecture style for APIs. Uses HTTP methods (GET, POST, PUT, DELETE) to do things with resources at URLs.'},
+      {name:'HTTPS',       x:368,y:292,state:'locked',def:'HTTP with encryption. The S means your data is encrypted in transit. The padlock in your browser means HTTPS is active.'},
+      {name:'CORS',        x:348,y:305,state:'locked',def:'Cross-Origin Resource Sharing — a browser security rule. Blocks a page from requesting data from a different domain unless allowed.'},
+    ]
+  },
+  {
+    id:'editor', name:'Editor & Code', color:'#98c379',
+    glow:'rgba(152,195,121,0.7)', glow2:'rgba(152,195,121,0.3)',
+    blob:[[182,178],[275,162],[330,190],[322,258],[272,285],[210,280],[178,248],[175,205]],
+    centroid:[255,228],
+    subcats:[
+      { name:'VS Code',    cx:238,cy:198, r:35 },
+      { name:'Code Basics',cx:278,cy:248, r:35 },
+      { name:'Concepts',   cx:220,cy:258, r:28 },
+    ],
+    concepts:[
+      {name:'VS Code',     x:205,y:185,state:'new',   def:'Visual Studio Code — the most popular code editor. Free, extensible, has IntelliSense, Git integration, and thousands of extensions.'},
+      {name:'extension',   x:240,y:175,state:'locked',def:'A plugin for VS Code. Adds features like language support, themes, linting. Install from the Extensions panel (Ctrl+Shift+X).'},
+      {name:'linter',      x:268,y:188,state:'locked',def:'A tool that checks your code for errors and style issues without running it. ESLint for JS, Pylint for Python.'},
+      {name:'function',    x:255,y:222,state:'locked',def:'A reusable block of code with a name. You define it once, call it many times. Functions take inputs and return outputs.'},
+      {name:'variable',    x:285,y:242,state:'locked',def:'A named container for a value. let x = 5 creates a variable named x holding the number 5. Its value can change.'},
+      {name:'runtime',     x:260,y:262,state:'locked',def:'The environment where your code actually runs. Node.js is a JS runtime. Python interpreter is a Python runtime.'},
+      {name:'dependency',  x:228,y:265,state:'locked',def:'External code your project relies on. Listed in package.json or requirements.txt. Installed via npm or pip.'},
+    ]
+  },
+  {
+    id:'packages', name:'Packages & Env', color:'#56b6c2',
+    glow:'rgba(86,182,194,0.7)', glow2:'rgba(86,182,194,0.3)',
+    blob:[[72,332],[155,312],[202,335],[198,398],[148,425],[88,420],[58,385],[52,352]],
+    centroid:[132,372],
+    subcats:[
+      { name:'Pkg Managers', cx:122,cy:348, r:35 },
+      { name:'Config',       cx:148,cy:390, r:32 },
+      { name:'Dependencies', cx:102,cy:400, r:28 },
+    ],
+    concepts:[
+      {name:'npm',         x:88, y:335,state:'new',   def:'Node Package Manager — installs JS libraries. npm install react adds React to your project. Reads dependencies from package.json.'},
+      {name:'pip',         x:125,y:325,state:'locked',def:'Python\'s package installer. pip install pandas downloads the pandas library. pip freeze lists all installed packages.'},
+      {name:'Chocolatey',  x:158,y:342,state:'locked',def:'Windows package manager. choco install nodejs installs Node without browser downloads or install wizards.'},
+      {name:'package.json',x:148,y:375,state:'locked',def:'The config file for a Node project. Lists your project name, version, scripts to run, and all npm dependencies.'},
+      {name:'.env file',   x:118,y:388,state:'locked',def:'A file holding environment variables for local dev. API_KEY=abc123. Never commit this to Git — add it to .gitignore.'},
+      {name:'semver',      x:162,y:395,state:'locked',def:'Semantic versioning — the 1.2.3 format for package versions. Major.minor.patch. Breaking changes bump the major number.'},
+      {name:'node_modules',x:98, y:408,state:'locked',def:'The folder where npm stores installed packages. Often gigabytes large. Never commit it — it\'s in .gitignore by default.'},
+    ]
+  },
+  {
+    id:'ai', name:'AI & Prompting', color:'#d19a66',
+    glow:'rgba(209,154,102,0.7)', glow2:'rgba(209,154,102,0.3)',
+    blob:[[322,325],[402,312],[448,358],[435,425],[370,440],[315,412],[308,368]],
+    centroid:[375,378],
+    subcats:[
+      { name:'How AI Works', cx:365,cy:345, r:30 },
+      { name:'AI Tools',     cx:398,cy:385, r:32 },
+      { name:'Prompting',    cx:352,cy:400, r:28 },
+    ],
+    concepts:[
+      {name:'LLM',         x:335,y:332,state:'new',   def:'Large Language Model — an AI trained on vast text to predict and generate language. GPT-4, Claude, Gemini are all LLMs.'},
+      {name:'token',       x:368,y:322,state:'locked',def:'The unit an LLM processes text in. Roughly ¾ of a word. "ChatGPT" is one token. Context limits are measured in tokens.'},
+      {name:'context win.',x:395,y:340,state:'locked',def:'How much text an LLM can "see" at once. GPT-4 has a ~128k token context — roughly 100,000 words of memory per conversation.'},
+      {name:'Cursor',      x:388,y:368,state:'locked',def:'An AI code editor built on VS Code. Uses Claude/GPT to write, edit, and explain code inline. Popular with vibe coders.'},
+      {name:'Claude',      x:415,y:382,state:'locked',def:'Anthropic\'s AI assistant. Strong at coding, analysis, and long documents. Available via API, Claude.ai, and inside Cursor.'},
+      {name:'sys prompt',  x:348,y:385,state:'locked',def:'Instructions given to an AI before the conversation starts. Defines its personality, rules, and role. Hidden from the user.'},
+      {name:'RAG',         x:362,y:408,state:'locked',def:'Retrieval-Augmented Generation — an AI pattern that searches a knowledge base before answering, so it uses real up-to-date facts.'},
+    ]
+  },
+  {
+    id:'cloud', name:'Cloud & Deploy', color:'#abb2bf',
+    glow:'rgba(171,178,191,0.6)', glow2:'rgba(171,178,191,0.25)',
+    blob:[[188,398],[268,382],[318,402],[312,462],[252,472],[192,462],[178,432]],
+    centroid:[252,432],
+    subcats:[
+      { name:'Deployment',  cx:238,cy:412, r:32 },
+      { name:'Databases',   cx:278,cy:442, r:28 },
+      { name:'Storage',     cx:222,cy:448, r:25 },
+    ],
+    concepts:[
+      {name:'deploy',      x:202,y:402,state:'new',   def:'Publishing your app so others can access it on the internet. Involves building, uploading to a server, and making it publicly accessible.'},
+      {name:'Vercel',      x:238,y:392,state:'locked',def:'A hosting platform for frontend apps. Connect your GitHub repo, push code, and Vercel auto-deploys it to a global CDN in seconds.'},
+      {name:'CI/CD',       x:272,y:405,state:'locked',def:'Continuous Integration/Delivery — automated pipelines that test and deploy your code on every push. GitHub Actions is a popular tool.'},
+      {name:'Docker',      x:295,y:418,state:'locked',def:'Packages your app and all its dependencies into a "container" that runs identically everywhere. Eliminates "works on my machine" problems.'},
+      {name:'SQL',         x:262,y:435,state:'locked',def:'Structured Query Language — how you talk to relational databases. SELECT * FROM users WHERE id=1 fetches a user record.'},
+      {name:'CDN',         x:228,y:445,state:'locked',def:'Content Delivery Network — copies of your static files (images, JS, CSS) hosted in servers worldwide so they load fast everywhere.'},
+      {name:'serverless',  x:248,y:458,state:'locked',def:'Running code without managing servers. AWS Lambda, Vercel Functions — upload a function, it runs on demand, you pay per call.'},
+    ]
+  },
+];
+
+// Cross-zone bridge connections (shown at zone level)
+const BRIDGES = [
+  {from:'shell', fc:[148,198], to:'web',      tc:[362,198], label:'stdin/stdout'},
+  {from:'shell', fc:[72,310],  to:'packages', tc:[88,335],  label:'env var'},
+  {from:'git',   fc:[338,82],  to:'editor',   tc:[268,188], label:'version control'},
+  {from:'web',   fc:[418,248], to:'ai',       tc:[388,368], label:'API calls'},
+  {from:'packages',fc:[148,375],to:'cloud',   tc:[272,405], label:'dependencies'},
+  {from:'editor',  fc:[285,242],to:'git',     tc:[302,92],  label:'code changes'},
+  {from:'machine', fc:[188,150],to:'shell',   tc:[98,205],  label:'OS + commands'},
+];
+
+// ═══════════════════════════════════════════════════════════
+// SMOOTH BLOB PATH (Catmull-Rom spline)
+// ═══════════════════════════════════════════════════════════
+function blobPath(pts) {
+  const n = pts.length;
+  let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i-1+n)%n], p1 = pts[i];
+    const p2 = pts[(i+1)%n],   p3 = pts[(i+2)%n];
+    const cp1x = p1[0] + (p2[0]-p0[0])/5;
+    const cp1y = p1[1] + (p2[1]-p0[1])/5;
+    const cp2x = p2[0] - (p3[0]-p1[0])/5;
+    const cp2y = p2[1] - (p3[1]-p1[1])/5;
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d + ' Z';
+}
+
+// ═══════════════════════════════════════════════════════════
+// STARS
+// ═══════════════════════════════════════════════════════════
+function makeStars() {
+  const bg = document.getElementById('star-bg');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('div');
+    s.className = 'st';
+    const sz = Math.random() < 0.65 ? 1 : (Math.random() < 0.6 ? 1.5 : 2);
+    s.style.cssText = `width:${sz}px;height:${sz}px;left:${(Math.random()*100).toFixed(1)}%;top:${(Math.random()*100).toFixed(1)}%;--d:${(2+Math.random()*4).toFixed(1)}s;--dl:-${(Math.random()*6).toFixed(1)}s;--lo:${(0.06+Math.random()*0.14).toFixed(2)};--hi:${(0.25+Math.random()*0.4).toFixed(2)};`;
+    bg.appendChild(s);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SVG HELPERS
+// ═══════════════════════════════════════════════════════════
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  if (attrs) Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
+  return el;
+}
+
+// ═══════════════════════════════════════════════════════════
+// BUILD GLOBE CONTENT
+// ═══════════════════════════════════════════════════════════
+function buildGlobe() {
+  const g = document.getElementById('globe-g');
+  const defs = document.querySelector('#globe-svg defs');
+
+  // LAYER 0: subtle grid lines (graticules)
+  const grid = svgEl('g', {class:'grid-lines', opacity:'0.04'});
+  for(let lat=0; lat<360; lat+=30){
+    const r = lat*218/360;
+    grid.appendChild(svgEl('circle',{cx:250,cy:250,r:r,fill:'none',stroke:'#61afef','stroke-width':'0.5'}));
+  }
+  for(let lon=0; lon<12; lon++){
+    const angle = lon*30 * Math.PI/180;
+    const x1=250+218*Math.cos(angle), y1=250+218*Math.sin(angle);
+    const x2=250-218*Math.cos(angle), y2=250-218*Math.sin(angle);
+    grid.appendChild(svgEl('line',{x1,y1,x2,y2,stroke:'#61afef','stroke-width':'0.5'}));
+  }
+  g.appendChild(grid);
+
+  // LAYER 1: bridge connection lines (zone level, always visible but faint)
+  const bridgeG = svgEl('g', {class:'bridge-lines'});
+  BRIDGES.forEach((b,i) => {
+    const gradId = `bg-${i}`;
+    const zf = ZONES.find(z=>z.id===b.from);
+    const zt = ZONES.find(z=>z.id===b.to);
+    const grad = svgEl('linearGradient',{id:gradId,gradientUnits:'userSpaceOnUse',
+      x1:b.fc[0],y1:b.fc[1],x2:b.tc[0],y2:b.tc[1]});
+    const s1 = svgEl('stop',{offset:'0%','stop-color':zf.color});
+    const s2 = svgEl('stop',{offset:'100%','stop-color':zt.color});
+    grad.appendChild(s1); grad.appendChild(s2); defs.appendChild(grad);
+
+    const line = svgEl('line',{
+      x1:b.fc[0],y1:b.fc[1],x2:b.tc[0],y2:b.tc[1],
+      stroke:`url(#${gradId})`, 'stroke-width':'1.2',
+      'stroke-opacity':'0.35', 'stroke-dasharray':'4,6',
+      class:'bridge-line'
+    });
+    bridgeG.appendChild(line);
+  });
+  g.appendChild(bridgeG);
+
+  // LAYER 2: zone blobs
+  const zoneG = svgEl('g', {class:'zone-blobs'});
+  ZONES.forEach(z => {
+    const gradId = `zg-${z.id}`;
+    const grad = svgEl('radialGradient',{id:gradId,cx:'40%',cy:'35%',r:'65%'});
+    const rgb = hexRgb(z.color);
+    const s1 = svgEl('stop',{offset:'0%','stop-color':z.color,'stop-opacity':'0.22'});
+    const s2 = svgEl('stop',{offset:'100%','stop-color':z.color,'stop-opacity':'0.08'});
+    grad.appendChild(s1); grad.appendChild(s2); defs.appendChild(grad);
+
+    const path = svgEl('path',{
+      d:blobPath(z.blob),
+      fill:`url(#${gradId})`,
+      stroke:z.color, 'stroke-width':'1.2', 'stroke-opacity':'0.6',
+      class:'zone-blob', 'data-zone':z.id
+    });
+    zoneG.appendChild(path);
+  });
+  g.appendChild(zoneG);
+
+  // LAYER 3: zone labels (always visible at low zoom)
+  const zoneLblG = svgEl('g', {class:'zone-labels'});
+  ZONES.forEach(z => {
+    const txt = svgEl('text',{
+      x:z.centroid[0], y:z.centroid[1],
+      'text-anchor':'middle', 'dominant-baseline':'middle',
+      fill:z.color, 'font-size':'9', 'font-weight':'700',
+      'font-family':'-apple-system,sans-serif',
+      'letter-spacing':'0.05em',
+      class:'zone-label', 'data-zone':z.id,
+      style:'text-shadow:0 0 8px var(--c);pointer-events:none'
+    });
+    txt.textContent = z.name;
+    txt.style.setProperty('--c', z.glow);
+    zoneLblG.appendChild(txt);
+  });
+  g.appendChild(zoneLblG);
+
+  // LAYER 4: subcategory regions (hidden at low zoom)
+  const subcatG = svgEl('g', {class:'subcat-regions', opacity:'0'});
+  ZONES.forEach(z => {
+    z.subcats.forEach(sc => {
+      const circle = svgEl('circle',{
+        cx:sc.cx, cy:sc.cy, r:sc.r,
+        fill:z.color, 'fill-opacity':'0.08',
+        stroke:z.color, 'stroke-width':'0.8', 'stroke-opacity':'0.3',
+        'stroke-dasharray':'3,3',
+        class:'subcat-region'
+      });
+      subcatG.appendChild(circle);
+
+      const lbl = svgEl('text',{
+        x:sc.cx, y:sc.cy - sc.r - 4,
+        'text-anchor':'middle', fill:z.color,
+        'font-size':'6.5', 'font-weight':'600',
+        'font-family':'-apple-system,sans-serif',
+        'letter-spacing':'0.06em',
+        class:'subcat-label',
+        style:'pointer-events:none;opacity:0.7'
+      });
+      lbl.textContent = sc.name.toUpperCase();
+      subcatG.appendChild(lbl);
+    });
+  });
+  g.appendChild(subcatG);
+
+  // LAYER 5: concept-level connection lines (hidden at low zoom)
+  const conceptLineG = svgEl('g', {class:'concept-lines', opacity:'0'});
+  ZONES.forEach(z => {
+    const concepts = z.concepts;
+    // connect sequential concepts within zone
+    for(let i=0; i<concepts.length-1; i++){
+      const a=concepts[i], b=concepts[i+1];
+      const line = svgEl('line',{
+        x1:a.x,y1:a.y,x2:b.x,y2:b.y,
+        stroke:z.color,'stroke-width':'0.7','stroke-opacity':'0.3',
+        class:'concept-line'
+      });
+      conceptLineG.appendChild(line);
+    }
+  });
+  g.appendChild(conceptLineG);
+
+  // LAYER 6: concept nodes (hidden at low zoom)
+  const conceptG = svgEl('g', {class:'concept-nodes', opacity:'0'});
+  ZONES.forEach(z => {
+    z.concepts.forEach(c => {
+      const isDone   = c.state==='done';
+      const isReview = c.state==='review';
+      const isNew    = c.state==='new';
+      const isLocked = c.state==='locked';
+
+      // glow filter id
+      const filtId = `gf-${z.id}-${c.name.replace(/[^a-z0-9]/gi,'_')}`;
+      if(isDone||isReview){
+        const filt = svgEl('filter',{id:filtId,x:'-100%',y:'-100%',width:'300%',height:'300%'});
+        const fe = svgEl('feGaussianBlur',{in:'SourceGraphic',stdDeviation:isDone?'2.5':'1.5'});
+        filt.appendChild(fe); defs.appendChild(filt);
+      }
+
+      const nodeG = svgEl('g',{
+        class:`concept-node${isDone?' c-done':''}`,
+        transform:`translate(${c.x},${c.y})`,
+        style:`--nc:${z.glow};--nc2:${z.glow2};cursor:${isLocked?'default':'pointer'}`,
+        'data-name':c.name, 'data-zone':z.name, 'data-def':c.def||'',
+        'data-color':z.color, 'data-locked':isLocked?'1':'0'
+      });
+
+      // glow halo
+      if(isDone||isReview){
+        const halo = svgEl('circle',{r:isDone?5:3.5,
+          fill:z.color, 'fill-opacity':isDone?'0.2':'0.1',
+          filter:`url(#${filtId})`});
+        nodeG.appendChild(halo);
+      }
+
+      const sz = isDone?4.5 : isReview?3.5 : isNew?3 : 2.5;
+      const dot = svgEl('circle',{r:sz,
+        fill: isDone?z.color : isLocked?'#1a1e28':'none',
+        stroke: isLocked?'#2c313a':z.color,
+        'stroke-width': isLocked?'0.6':'1',
+        'stroke-opacity': isLocked?'0.4':'0.8',
+        'fill-opacity': isDone?'0.9':'0'
+      });
+      nodeG.appendChild(dot);
+
+      // bridge diamond overlay
+      if(c.bridge){
+        const bz1 = ZONES.find(z2=>z2.id===c.bz[0]);
+        const bz2 = ZONES.find(z2=>z2.id===c.bz[1]);
+        const bgId = `nbg-${c.name.replace(/[^a-z0-9]/gi,'_')}`;
+        const bg = svgEl('linearGradient',{id:bgId,'gradientUnits':'userSpaceOnUse',x1:-4,y1:-4,x2:4,y2:4});
+        const bs1=svgEl('stop',{offset:'0%','stop-color':bz1?.color||z.color});
+        const bs2=svgEl('stop',{offset:'100%','stop-color':bz2?.color||'#61afef'});
+        bg.appendChild(bs1);bg.appendChild(bs2);defs.appendChild(bg);
+        const dia = svgEl('rect',{x:-3.5,y:-3.5,width:7,height:7,
+          transform:'rotate(45)',fill:'none',
+          stroke:`url(#${bgId})`,'stroke-width':'1'});
+        nodeG.appendChild(dia);
+      }
+
+      // label
+      const lbl = svgEl('text',{
+        x:0, y:sz+8, 'text-anchor':'middle',
+        fill: isLocked?'#2c313a':z.color,
+        'font-size':'5.5','font-family':'-apple-system,sans-serif',
+        'pointer-events':'none', 'font-weight':'500'
+      });
+      lbl.textContent = c.name;
+      nodeG.appendChild(lbl);
+
+      if(!isLocked){
+        nodeG.addEventListener('click', e => {
+          e.stopPropagation();
+          openSheet(c, z);
+        });
+      }
+      conceptG.appendChild(nodeG);
+    });
+  });
+  g.appendChild(conceptG);
+}
+
+// ═══════════════════════════════════════════════════════════
+// D3 ZOOM
+// ═══════════════════════════════════════════════════════════
+const svg  = d3.select('#globe-svg');
+const gEl  = d3.select('#globe-g');
+let currentK = 1;
+
+const zoom = d3.zoom()
+  .scaleExtent([0.5, 12])
+  .on('zoom', event => {
+    const t = event.transform;
+    gEl.attr('transform', t);
+    currentK = t.k;
+    updateLOD(t.k);
+  });
+
+svg.call(zoom);
+
+// Prevent double-click default zoom
+svg.on('dblclick.zoom', null);
+
+// Double-tap to zoom in on a zone
+svg.on('dblclick', event => {
+  const [mx,my] = d3.pointer(event, document.getElementById('globe-g'));
+  svg.transition().duration(500).call(
+    zoom.scaleBy, 2.5,
+    [mx * (310/500) + (340-310)/2, my * (310/500) + 70]
+  );
+});
+
+function updateLOD(k) {
+  // Zone blobs: fade slightly at high zoom
+  d3.selectAll('.zone-blob').style('opacity', k < 4 ? 1 : Math.max(0.4, 1-(k-4)*0.1));
+  // Zone labels: fade out above k=3
+  d3.selectAll('.zone-label').style('opacity', k < 2 ? 1 : Math.max(0, 1-(k-2)/1.5));
+  // Bridge lines: fade out above k=2
+  d3.selectAll('.bridge-line').style('opacity', k < 1.5 ? 0.35 : Math.max(0, 0.35-(k-1.5)*0.15));
+  // Grid: fade at high zoom
+  d3.selectAll('.grid-lines').style('opacity', k < 3 ? 0.04 : Math.min(0.1, 0.04+(k-3)*0.02));
+
+  // Subcategory regions: emerge k > 1.8
+  const subcatOp = k < 1.8 ? 0 : Math.min(1, (k-1.8)/1.2);
+  d3.selectAll('.subcat-regions').style('opacity', subcatOp);
+
+  // Concept lines: emerge k > 3.5
+  const clineOp = k < 3.5 ? 0 : Math.min(1, (k-3.5)/1.5);
+  d3.selectAll('.concept-lines').style('opacity', clineOp);
+
+  // Concept nodes: emerge k > 3
+  const cnodeOp = k < 3 ? 0 : Math.min(1, (k-3)/1.8);
+  d3.selectAll('.concept-nodes').style('opacity', cnodeOp);
+
+  // LOD badge + header text
+  const badge = document.getElementById('lod-badge');
+  const lodTxt = document.getElementById('lod-text');
+  const kLabel = badge.querySelector('strong');
+  if(kLabel) kLabel.textContent = '×'+k.toFixed(1);
+  if(k < 1.8){
+    badge.lastChild.textContent = ' zones';
+    lodTxt.textContent = 'Zoomed out — all 8 zones visible';
+  } else if(k < 3){
+    badge.lastChild.textContent = ' subcategories';
+    lodTxt.textContent = 'Subcategories visible — zoom in more';
+  } else {
+    badge.lastChild.textContent = ' concepts';
+    lodTxt.textContent = 'Concepts visible — tap a glowing node';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ZOOM CONTROLS
+// ═══════════════════════════════════════════════════════════
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+  svg.transition().duration(300).call(zoom.scaleBy, 1.8);
+});
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+  svg.transition().duration(300).call(zoom.scaleBy, 0.6);
+});
+document.getElementById('btn-reset').addEventListener('click', () => {
+  svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+});
+
+// ═══════════════════════════════════════════════════════════
+// BOTTOM SHEET
+// ═══════════════════════════════════════════════════════════
+function openSheet(c, z) {
+  const tag  = document.getElementById('bs-tag');
+  const nm   = document.getElementById('bs-name');
+  const zone = document.getElementById('bs-zone');
+  const def  = document.getElementById('bs-def');
+
+  tag.textContent = z.name;
+  tag.style.color = z.color;
+  tag.style.borderColor = z.color;
+  tag.style.background  = `rgba(${hexRgb(z.color).join(',')},0.1)`;
+  nm.textContent   = c.name;
+  zone.textContent = z.name + ' · ' + (z.subcats[0]?.name || '');
+  def.textContent  = c.def || 'Definition coming soon.';
+
+  document.getElementById('sheet-bg').classList.add('on');
+  document.getElementById('sheet').classList.add('on');
+}
+function closeSheet() {
+  document.getElementById('sheet-bg').classList.remove('on');
+  document.getElementById('sheet').classList.remove('on');
+}
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+function hexRgb(h) {
+  return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+makeStars();
+buildGlobe();
+
+// Set lod-badge text node properly
+const badge = document.getElementById('lod-badge');
+badge.appendChild(document.createTextNode(' zones'));
+</script>
+</body>
+</html>

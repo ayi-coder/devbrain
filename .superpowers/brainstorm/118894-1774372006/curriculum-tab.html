@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Curriculum Tab + New Tab Bar</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #111318;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #abb2bf;
+  padding: 16px;
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+h2 { color: #e5c07b; font-size: 15px; margin-bottom: 4px; }
+.sub { color: #4b5263; font-size: 11px; margin-bottom: 14px; }
+
+.phone {
+  width: 300px;
+  background: #0d0f14;
+  border-radius: 36px;
+  border: 2px solid #2c313a;
+  padding: 24px 0 0;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 620px;
+}
+
+/* PHONE HEADER */
+.phone-header {
+  padding: 0 16px 14px;
+  border-bottom: 1px solid #1a1e28;
+  flex-shrink: 0;
+}
+.screen-title { font-size: 16px; font-weight: 700; color: #e5e9f0; }
+.screen-sub   { font-size: 10px; color: #4b5263; margin-top: 2px; }
+
+/* SCROLL AREA */
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 12px 0;
+  scrollbar-width: none;
+}
+.scroll-area::-webkit-scrollbar { display: none; }
+
+/* ZONE BLOCK */
+.zone-block {
+  margin-bottom: 8px;
+  border: 1px solid #1a1e28;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.zone-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  background: #131720;
+  cursor: pointer;
+  user-select: none;
+}
+.zone-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.zone-name {
+  flex: 1;
+  font-size: 12px; font-weight: 700; color: #e5e9f0;
+}
+.zone-count {
+  font-size: 10px; color: #4b5263;
+}
+.zone-chevron {
+  width: 14px; height: 14px; color: #3e4451;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.zone-block.open .zone-chevron { transform: rotate(90deg); }
+
+.zone-progress-bar {
+  height: 2px;
+  background: #1a1e28;
+  overflow: hidden;
+}
+.zone-progress-fill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 0.4s;
+}
+
+/* SUBCATEGORY LIST */
+.subcat-list {
+  display: none;
+  background: #0f1217;
+}
+.zone-block.open .subcat-list { display: block; }
+
+.subcat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px 9px 30px;
+  border-top: 1px solid #1a1e28;
+  cursor: pointer;
+  position: relative;
+}
+.subcat-item:hover { background: rgba(255,255,255,0.02); }
+
+.subcat-bar {
+  position: absolute;
+  left: 16px;
+  top: 0; bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+}
+.subcat-name {
+  flex: 1;
+  font-size: 11px; color: #8b9199;
+}
+.subcat-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.subcat-pill {
+  font-size: 9px; color: #3e4451;
+  background: #1a1e28;
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+.map-btn {
+  font-size: 9px; color: #61afef;
+  background: rgba(97,175,239,0.08);
+  border: 1px solid rgba(97,175,239,0.2);
+  border-radius: 5px;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* nested subcats (level 3 hint) */
+.subcat-item.lvl2 {
+  padding-left: 44px;
+  background: rgba(0,0,0,0.15);
+}
+.subcat-item.lvl2 .subcat-name {
+  font-size: 10px;
+  color: #636d83;
+}
+
+/* BOTTOM NAV */
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-top: 1px solid #1a1e28;
+  padding: 10px 0 16px;
+  flex-shrink: 0;
+  background: rgba(13,15,20,0.9);
+  backdrop-filter: blur(12px);
+}
+.nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 9px; color: #3e4451; cursor: pointer;
+  padding: 4px 12px; border-radius: 10px;
+  transition: color 0.15s;
+}
+.nav-item--active {
+  color: #61afef;
+  background: rgba(97,175,239,0.08);
+}
+.nav-icon svg { display: block; }
+
+/* ── TAB COMPARISON ── */
+.comparison {
+  max-width: 560px;
+}
+.comp-row {
+  display: flex; gap: 16px; margin-bottom: 20px;
+}
+.comp-box {
+  flex: 1;
+  background: #131720;
+  border: 1px solid #1a1e28;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.comp-label {
+  font-size: 10px; color: #4b5263;
+  padding: 8px 12px;
+  border-bottom: 1px solid #1a1e28;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.comp-label.bad  { color: #e06c75; }
+.comp-label.good { color: #98c379; }
+
+.mock-nav {
+  display: flex; justify-content: space-around; align-items: center;
+  padding: 10px 0;
+  background: #0d0f14;
+}
+.mock-tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 9px;
+  padding: 4px 10px; border-radius: 8px;
+}
+.mock-tab.active-emoji { color: #61afef; }
+.mock-tab.inactive-emoji { color: #3e4451; }
+.mock-tab.active-icon { color: #61afef; background: rgba(97,175,239,0.1); }
+.mock-tab.inactive-icon { color: #3e4451; }
+</style>
+</head>
+<body>
+
+<!-- LEFT: Phone mockup -->
+<div>
+<h2>Curriculum Tab</h2>
+<p class="sub">Accordion zones → subcategories · "Open in Map" on each</p>
+
+<div class="phone">
+  <div class="phone-header">
+    <div class="screen-title">Curriculum</div>
+    <div class="screen-sub">8 zones · 120 concepts total</div>
+  </div>
+
+  <div class="scroll-area">
+
+    <!-- Zone 1: Your Machine — open -->
+    <div class="zone-block open">
+      <div class="zone-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="zone-dot" style="background:#c678dd"></div>
+        <div class="zone-name">Your Machine</div>
+        <div class="zone-count">3 / 14</div>
+        <svg class="zone-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6,4 10,8 6,12"/>
+        </svg>
+      </div>
+      <div class="zone-progress-bar"><div class="zone-progress-fill" style="background:#c678dd;width:21%"></div></div>
+      <div class="subcat-list">
+        <div class="subcat-item">
+          <div class="subcat-bar" style="background:#c678dd"></div>
+          <div class="subcat-name">Operating Systems</div>
+          <div class="subcat-meta">
+            <span class="subcat-pill">5 concepts</span>
+            <span class="map-btn">Map ↗</span>
+          </div>
+        </div>
+        <div class="subcat-item">
+          <div class="subcat-bar" style="background:#c678dd"></div>
+          <div class="subcat-name">File System</div>
+          <div class="subcat-meta">
+            <span class="subcat-pill">5 concepts</span>
+            <span class="map-btn">Map ↗</span>
+          </div>
+        </div>
+        <div class="subcat-item">
+          <div class="subcat-bar" style="background:#c678dd"></div>
+          <div class="subcat-name">System Concepts</div>
+          <div class="subcat-meta">
+            <span class="subcat-pill">4 concepts</span>
+            <span class="map-btn">Map ↗</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zone 2: Shell & Terminal — open -->
+    <div class="zone-block open">
+      <div class="zone-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="zone-dot" style="background:#e5c07b"></div>
+        <div class="zone-name">Shell & Terminal</div>
+        <div class="zone-count">8 / 18</div>
+        <svg class="zone-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6,4 10,8 6,12"/>
+        </svg>
+      </div>
+      <div class="zone-progress-bar"><div class="zone-progress-fill" style="background:#e5c07b;width:44%"></div></div>
+      <div class="subcat-list">
+        <div class="subcat-item">
+          <div class="subcat-bar" style="background:#e5c07b"></div>
+          <div class="subcat-name">Core Concepts</div>
+          <div class="subcat-meta">
+            <span class="subcat-pill">4 concepts</span>
+            <span class="map-btn">Map ↗</span>
+          </div>
+        </div>
+        <div class="subcat-item">
+          <div class="subcat-bar" style="background:#e5c07b"></div>
+          <div class="subcat-name">Bash Commands</div>
+          <div class="subcat-meta">
+            <span class="subcat-pill">6 concepts</span>
+            <span class="map-btn">Map ↗</span>
+          </div>
+        </div>
+        <div class="subcat-item">
+          <div class="subcat-bar" style="background:#e5c07b"></div>
+          <div class="subcat-name">PowerShell Commands</div>
+          <div class="subcat-meta">
+            <span class="subcat-pill">4 concepts</span>
+            <span class="map-btn">Map ↗</span>
+          </div>
+        </div>
+        <div class="subcat-item">
+          <div class="subcat-bar" style="background:#e5c07b"></div>
+          <div class="subcat-name">Scripting</div>
+          <div class="subcat-meta">
+            <span class="subcat-pill">4 concepts</span>
+            <span class="map-btn">Map ↗</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zone 3: Git & GitHub — closed -->
+    <div class="zone-block">
+      <div class="zone-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="zone-dot" style="background:#e06c75"></div>
+        <div class="zone-name">Git & GitHub</div>
+        <div class="zone-count">5 / 15</div>
+        <svg class="zone-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6,4 10,8 6,12"/>
+        </svg>
+      </div>
+      <div class="zone-progress-bar"><div class="zone-progress-fill" style="background:#e06c75;width:33%"></div></div>
+      <div class="subcat-list">
+        <div class="subcat-item"><div class="subcat-bar" style="background:#e06c75"></div><div class="subcat-name">Core Concepts</div><div class="subcat-meta"><span class="subcat-pill">4</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#e06c75"></div><div class="subcat-name">Git Commands</div><div class="subcat-meta"><span class="subcat-pill">7</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#e06c75"></div><div class="subcat-name">GitHub</div><div class="subcat-meta"><span class="subcat-pill">4</span><span class="map-btn">Map ↗</span></div></div>
+      </div>
+    </div>
+
+    <!-- Zone 4: The Web — closed -->
+    <div class="zone-block">
+      <div class="zone-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="zone-dot" style="background:#61afef"></div>
+        <div class="zone-name">The Web</div>
+        <div class="zone-count">2 / 16</div>
+        <svg class="zone-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6,4 10,8 6,12"/>
+        </svg>
+      </div>
+      <div class="zone-progress-bar"><div class="zone-progress-fill" style="background:#61afef;width:12%"></div></div>
+      <div class="subcat-list">
+        <div class="subcat-item"><div class="subcat-bar" style="background:#61afef"></div><div class="subcat-name">How the Web Works</div><div class="subcat-meta"><span class="subcat-pill">5</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#61afef"></div><div class="subcat-name">APIs & Data</div><div class="subcat-meta"><span class="subcat-pill">6</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#61afef"></div><div class="subcat-name">Tools & Security</div><div class="subcat-meta"><span class="subcat-pill">5</span><span class="map-btn">Map ↗</span></div></div>
+      </div>
+    </div>
+
+    <!-- Zone 5: Editor & Code — closed -->
+    <div class="zone-block">
+      <div class="zone-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="zone-dot" style="background:#98c379"></div>
+        <div class="zone-name">Editor & Code</div>
+        <div class="zone-count">0 / 14</div>
+        <svg class="zone-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6,4 10,8 6,12"/>
+        </svg>
+      </div>
+      <div class="zone-progress-bar"><div class="zone-progress-fill" style="background:#98c379;width:0%"></div></div>
+      <div class="subcat-list">
+        <div class="subcat-item"><div class="subcat-bar" style="background:#98c379"></div><div class="subcat-name">VS Code</div><div class="subcat-meta"><span class="subcat-pill">5</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#98c379"></div><div class="subcat-name">Code Fundamentals</div><div class="subcat-meta"><span class="subcat-pill">5</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#98c379"></div><div class="subcat-name">Software Concepts</div><div class="subcat-meta"><span class="subcat-pill">4</span><span class="map-btn">Map ↗</span></div></div>
+      </div>
+    </div>
+
+    <!-- Zone 6: Packages & Env — closed -->
+    <div class="zone-block">
+      <div class="zone-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="zone-dot" style="background:#56b6c2"></div>
+        <div class="zone-name">Packages & Env</div>
+        <div class="zone-count">0 / 13</div>
+        <svg class="zone-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6,4 10,8 6,12"/>
+        </svg>
+      </div>
+      <div class="zone-progress-bar"><div class="zone-progress-fill" style="background:#56b6c2;width:0%"></div></div>
+      <div class="subcat-list">
+        <div class="subcat-item"><div class="subcat-bar" style="background:#56b6c2"></div><div class="subcat-name">Package Managers</div><div class="subcat-meta"><span class="subcat-pill">4</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#56b6c2"></div><div class="subcat-name">Project Config</div><div class="subcat-meta"><span class="subcat-pill">5</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#56b6c2"></div><div class="subcat-name">Dependencies</div><div class="subcat-meta"><span class="subcat-pill">4</span><span class="map-btn">Map ↗</span></div></div>
+      </div>
+    </div>
+
+    <!-- Zone 7: AI & Prompting — closed -->
+    <div class="zone-block">
+      <div class="zone-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="zone-dot" style="background:#d19a66"></div>
+        <div class="zone-name">AI & Prompting</div>
+        <div class="zone-count">0 / 15</div>
+        <svg class="zone-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6,4 10,8 6,12"/>
+        </svg>
+      </div>
+      <div class="zone-progress-bar"><div class="zone-progress-fill" style="background:#d19a66;width:0%"></div></div>
+      <div class="subcat-list">
+        <div class="subcat-item"><div class="subcat-bar" style="background:#d19a66"></div><div class="subcat-name">How AI Works</div><div class="subcat-meta"><span class="subcat-pill">4</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#d19a66"></div><div class="subcat-name">Using AI Tools</div><div class="subcat-meta"><span class="subcat-pill">6</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#d19a66"></div><div class="subcat-name">Prompting</div><div class="subcat-meta"><span class="subcat-pill">5</span><span class="map-btn">Map ↗</span></div></div>
+      </div>
+    </div>
+
+    <!-- Zone 8: Cloud & Deploy — closed -->
+    <div class="zone-block" style="margin-bottom:12px">
+      <div class="zone-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="zone-dot" style="background:#abb2bf"></div>
+        <div class="zone-name">Cloud & Deploy</div>
+        <div class="zone-count">0 / 15</div>
+        <svg class="zone-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6,4 10,8 6,12"/>
+        </svg>
+      </div>
+      <div class="zone-progress-bar"><div class="zone-progress-fill" style="background:#abb2bf;width:0%"></div></div>
+      <div class="subcat-list">
+        <div class="subcat-item"><div class="subcat-bar" style="background:#abb2bf"></div><div class="subcat-name">Deployment</div><div class="subcat-meta"><span class="subcat-pill">5</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#abb2bf"></div><div class="subcat-name">Databases</div><div class="subcat-meta"><span class="subcat-pill">5</span><span class="map-btn">Map ↗</span></div></div>
+        <div class="subcat-item"><div class="subcat-bar" style="background:#abb2bf"></div><div class="subcat-name">Storage</div><div class="subcat-meta"><span class="subcat-pill">5</span><span class="map-btn">Map ↗</span></div></div>
+      </div>
+    </div>
+
+  </div><!-- /scroll-area -->
+
+  <!-- BOTTOM NAV — no emojis, SVG icons -->
+  <div class="bottom-nav">
+
+    <!-- Home tab (inactive) -->
+    <div class="nav-item">
+      <span class="nav-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </span>
+      <span>Home</span>
+    </div>
+
+    <!-- Curriculum tab (active) -->
+    <div class="nav-item nav-item--active">
+      <span class="nav-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+        </svg>
+      </span>
+      <span>Curriculum</span>
+    </div>
+
+    <!-- Map tab (inactive) -->
+    <div class="nav-item">
+      <span class="nav-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="1,6 1,22 8,18 16,22 23,18 23,2 16,6 8,2"/>
+          <line x1="8" y1="2" x2="8" y2="18"/>
+          <line x1="16" y1="6" x2="16" y2="22"/>
+        </svg>
+      </span>
+      <span>Map</span>
+    </div>
+
+  </div>
+</div><!-- /phone -->
+</div>
+
+<!-- RIGHT: Tab bar comparison + notes -->
+<div class="comparison">
+  <h2>Tab Bar: Before vs After</h2>
+  <p class="sub">Outline/filled SVG icons — active state fills the icon, no emoji needed</p>
+
+  <div class="comp-row">
+    <div class="comp-box">
+      <div class="comp-label bad">Before — emoji tabs</div>
+      <div class="mock-nav">
+        <div class="mock-tab active-emoji">🏠<span style="font-size:9px;margin-top:2px;display:block">Home</span></div>
+        <div class="mock-tab inactive-emoji">🗺️<span style="font-size:9px;margin-top:2px;display:block">Map</span></div>
+        <div class="mock-tab inactive-emoji">📊<span style="font-size:9px;margin-top:2px;display:block">Progress</span></div>
+      </div>
+    </div>
+    <div class="comp-box">
+      <div class="comp-label good">After — SVG icon tabs</div>
+      <div class="mock-nav">
+        <div class="mock-tab active-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M12 3L2 12h3v8h5v-5h4v5h5v-8h3L12 3z"/>
+          </svg>
+          <span style="font-size:9px;margin-top:2px;display:block">Home</span>
+        </div>
+        <div class="mock-tab inactive-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+          </svg>
+          <span style="font-size:9px;margin-top:2px;display:block">Curriculum</span>
+        </div>
+        <div class="mock-tab inactive-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="1,6 1,22 8,18 16,22 23,18 23,2 16,6 8,2"/>
+            <line x1="8" y1="2" x2="8" y2="18"/>
+            <line x1="16" y1="6" x2="16" y2="22"/>
+          </svg>
+          <span style="font-size:9px;margin-top:2px;display:block">Map</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Design notes -->
+  <div style="background:#131720;border:1px solid #1a1e28;border-radius:12px;padding:14px;font-size:11px;line-height:1.7;color:#636d83">
+    <div style="color:#e5e9f0;font-weight:700;margin-bottom:8px;font-size:12px">Design decisions</div>
+    <div style="margin-bottom:5px"><span style="color:#98c379">✓</span> <strong style="color:#8b9199">Tabs:</strong> Home · Curriculum · Map — no Progress tab (stats live on Home card)</div>
+    <div style="margin-bottom:5px"><span style="color:#98c379">✓</span> <strong style="color:#8b9199">Active state:</strong> filled icon + blue text + soft bg pill</div>
+    <div style="margin-bottom:5px"><span style="color:#98c379">✓</span> <strong style="color:#8b9199">Curriculum navigation:</strong> L1 tap → accordion opens subcategories</div>
+    <div style="margin-bottom:5px"><span style="color:#98c379">✓</span> <strong style="color:#8b9199">Subcategory tap →</strong> push nav to concept list</div>
+    <div style="margin-bottom:5px"><span style="color:#98c379">✓</span> <strong style="color:#8b9199">"Map ↗" button:</strong> tab-switches to Map, scrolls + pulses target node</div>
+    <div style="margin-bottom:5px"><span style="color:#98c379">✓</span> <strong style="color:#8b9199">Progress bar:</strong> 2px colored stripe under each zone header, non-pressuring</div>
+    <div><span style="color:#98c379">✓</span> <strong style="color:#8b9199">Endowed progress:</strong> "8 / 18" shown — could also be "8 explored" style</div>
+  </div>
+</div>
+
+</body>
+</html>

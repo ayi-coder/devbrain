@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Flow</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #111318;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #abb2bf;
+  padding: 16px;
+}
+h2 { color: #e5c07b; font-size: 16px; margin-bottom: 4px; }
+.sub { color: #4b5263; font-size: 12px; margin-bottom: 18px; line-height: 1.5; }
+
+.row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 24px; }
+.col-label { font-size: 10px; color: #4b5263; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+
+/* Phone frame */
+.phone {
+  width: 288px;
+  background: #0d0f14;
+  border-radius: 32px;
+  border: 2px solid #2c313a;
+  padding: 22px 14px 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  flex-shrink: 0;
+}
+
+/* ── INNER MAP: QUIZ SELECTION MODE ── */
+.map-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.back-btn {
+  background: rgba(255,255,255,0.06); border: 1px solid #2c313a;
+  border-radius: 8px; padding: 4px 9px;
+  font-size: 11px; color: #636d83; cursor: pointer;
+}
+.quiz-btn {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(229,192,123,0.15);
+  border: 1px solid rgba(229,192,123,0.4);
+  border-radius: 8px; padding: 5px 10px;
+  font-size: 11px; font-weight: 600; color: #e5c07b; cursor: pointer;
+}
+.quiz-btn-active {
+  background: rgba(224,108,117,0.15);
+  border-color: rgba(224,108,117,0.4);
+  color: #e06c75;
+}
+
+/* Selection mode banner */
+.select-banner {
+  background: rgba(229,192,123,0.1);
+  border: 1px solid rgba(229,192,123,0.3);
+  border-radius: 10px; padding: 7px 10px;
+  font-size: 11px; color: #e5c07b;
+  margin-bottom: 10px; text-align: center;
+}
+
+/* Map canvas */
+.map-canvas {
+  background: radial-gradient(ellipse at 50% 35%, #161a24 0%, #0a0c12 100%);
+  border-radius: 14px; border: 1px solid #1e2227;
+  position: relative; height: 260px; overflow: hidden;
+  margin-bottom: 0;
+}
+.map-canvas::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,0.25) 0%, transparent 0%),
+    radial-gradient(1px 1px at 65% 15%, rgba(255,255,255,0.2) 0%, transparent 0%),
+    radial-gradient(1px 1px at 80% 55%, rgba(255,255,255,0.18) 0%, transparent 0%),
+    radial-gradient(1px 1px at 25% 75%, rgba(255,255,255,0.2) 0%, transparent 0%),
+    radial-gradient(1px 1px at 50% 88%, rgba(255,255,255,0.15) 0%, transparent 0%);
+  pointer-events: none;
+}
+
+/* Subcategory background blobs */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.node-wrap {
+  position: absolute;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+.node-c {
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; position: relative;
+  transition: transform 0.15s;
+}
+.node-wrap:hover .node-c { transform: scale(1.08); }
+
+/* States */
+.st-done   .node-c { border: 2px solid; }
+.st-avail  .node-c { border: 2px solid; }
+.st-locked .node-c { border: 1.5px dashed #2c313a; background: #0d0f14 !important; opacity: 0.4; }
+
+/* SELECTED state (quiz mode) */
+.st-selected .node-c {
+  border: 2.5px solid #e5c07b;
+  box-shadow: 0 0 0 3px rgba(229,192,123,0.2), 0 0 12px 4px rgba(229,192,123,0.25);
+}
+.checkmark {
+  position: absolute; top: -4px; right: -4px;
+  width: 14px; height: 14px;
+  background: #e5c07b; border-radius: 50%;
+  border: 1.5px solid #0d0f14;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; color: #0d0f14; font-weight: 700;
+}
+
+.node-lbl { font-size: 7.5px; color: #636d83; white-space: nowrap; }
+.st-selected .node-lbl { color: #e5c07b; }
+
+/* Cluster label anchor */
+.cluster-anchor {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+/* Sticky bottom bar */
+.quiz-bar {
+  background: linear-gradient(180deg, transparent 0%, #0d0f14 40%);
+  padding: 20px 0 0;
+  margin-top: -20px;
+  position: relative; z-index: 10;
+}
+.quiz-bar-inner {
+  background: #161a24;
+  border: 1px solid rgba(229,192,123,0.3);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+.quiz-bar-count {
+  font-size: 12px; color: #636d83;
+}
+.quiz-bar-count span { color: #e5c07b; font-weight: 700; }
+.quiz-start {
+  background: rgba(229,192,123,0.18);
+  border: 1px solid rgba(229,192,123,0.45);
+  border-radius: 10px; padding: 7px 14px;
+  font-size: 12px; font-weight: 700; color: #e5c07b; cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ── COMMAND QUIZ TYPES ── */
+.qcard {
+  background: #161a24;
+  border: 1px solid #2c313a;
+  border-radius: 14px;
+  padding: 14px;
+  width: 288px; flex-shrink: 0;
+}
+.qcard-label {
+  font-size: 9px; color: #4b5263; letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.qcard-label .pill {
+  background: rgba(86,182,194,0.12);
+  border: 1px solid rgba(86,182,194,0.3);
+  border-radius: 10px; padding: 2px 7px;
+  color: #56b6c2;
+}
+.qcard-q { font-size: 13px; color: #abb2bf; margin-bottom: 12px; line-height: 1.5; }
+
+/* Command anatomy */
+.cmd-display {
+  background: #0d0f14;
+  border-radius: 10px; padding: 12px 14px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 15px; margin-bottom: 10px;
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+}
+.cmd-token {
+  padding: 4px 8px; border-radius: 7px;
+  cursor: pointer; transition: transform 0.1s;
+  display: inline-flex; align-items: center;
+}
+.cmd-token:hover { transform: scale(1.05); }
+.t-tool   { background: rgba(97,175,239,0.15);  color: #61afef; border: 1px solid rgba(97,175,239,0.3); }
+.t-sub    { background: rgba(152,195,121,0.15); color: #98c379; border: 1px solid rgba(152,195,121,0.3); }
+.t-flag   { background: rgba(229,192,123,0.15); color: #e5c07b; border: 1px solid rgba(229,192,123,0.3); }
+.t-arg    { background: rgba(224,108,117,0.15);  color: #e06c75; border: 1px solid rgba(224,108,117,0.3); }
+.t-selected { box-shadow: 0 0 0 2px white; transform: scale(1.05); }
+
+.label-bank {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+}
+.label-chip {
+  background: #21252b; border: 1px solid #3e4451;
+  border-radius: 8px; padding: 5px 10px;
+  font-size: 11px; color: #636d83; cursor: pointer;
+}
+.label-chip-active {
+  background: rgba(229,192,123,0.12);
+  border-color: rgba(229,192,123,0.4);
+  color: #e5c07b;
+}
+
+/* Divider with label */
+.divider-label {
+  display: flex; align-items: center; gap: 8px;
+  margin: 6px 0 12px;
+}
+.divider-label::before, .divider-label::after {
+  content: ''; flex: 1; height: 1px; background: #2c313a;
+}
+.divider-label span { font-size: 10px; color: #4b5263; white-space: nowrap; }
+
+/* Word bank fill-in */
+.cmd-template {
+  background: #0d0f14;
+  border-radius: 10px; padding: 12px 14px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 14px; color: #abb2bf;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.blank {
+  display: inline-block; min-width: 60px; height: 26px;
+  background: rgba(229,192,123,0.08);
+  border: 1.5px dashed rgba(229,192,123,0.4);
+  border-radius: 6px; vertical-align: middle;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; color: #e5c07b;
+}
+.blank-filled {
+  background: rgba(229,192,123,0.12);
+  border-color: #e5c07b;
+  padding: 0 8px;
+}
+
+.word-bank {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+}
+.word-chip {
+  background: #21252b; border: 1px solid #3e4451;
+  border-radius: 8px; padding: 6px 11px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px; color: #abb2bf; cursor: pointer;
+}
+.word-chip-used { opacity: 0.3; pointer-events: none; text-decoration: line-through; }
+
+.check-btn {
+  display: block; width: 100%;
+  background: rgba(152,195,121,0.15);
+  border: 1px solid rgba(152,195,121,0.4);
+  border-radius: 10px; padding: 9px;
+  font-size: 12px; font-weight: 700;
+  color: #98c379; text-align: center; cursor: pointer;
+}
+
+/* Subsection blob colors in canvas */
+</style>
+</head>
+<body>
+
+<h2>Quiz Selection + Command Question Types</h2>
+<p class="sub">Top-left phone: map in quiz selection mode. Right: two new command question types.</p>
+
+<div class="row">
+
+  <!-- ═══ PHONE: INNER MAP IN QUIZ SELECTION MODE ═══ -->
+  <div>
+    <div class="col-label">Map — quiz selection active</div>
+    <div class="phone">
+
+      <!-- Top bar -->
+      <div class="map-topbar">
+        <button class="back-btn">← Map</button>
+        <span style="font-size:13px;font-weight:700;color:#e5c07b">⌨️ Shell</span>
+        <button class="quiz-btn quiz-btn-active">✕ Cancel</button>
+      </div>
+
+      <!-- Banner -->
+      <div class="select-banner">Tap concepts to add to your quiz</div>
+
+      <!-- Map canvas with spatial clusters -->
+      <div class="map-canvas">
+
+        <!-- Subcategory blob: Core Concepts (center-top, neutral) -->
+        <div class="blob" style="width:90px;height:80px;background:rgba(171,178,191,0.04);top:15px;left:50%;transform:translateX(-50%)"></div>
+        <!-- Subcategory blob: Bash (bottom-left, green tint) -->
+        <div class="blob" style="width:100px;height:90px;background:rgba(152,195,121,0.04);top:140px;left:10px"></div>
+        <!-- Subcategory blob: PowerShell (bottom-right, blue tint) -->
+        <div class="blob" style="width:100px;height:90px;background:rgba(97,175,239,0.04);top:140px;right:10px"></div>
+
+        <!-- SVG edges -->
+        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 260 260">
+          <line x1="85" y1="50" x2="130" y2="90" stroke="#e5c07b" stroke-width="1.5" stroke-opacity="0.45"/>
+          <line x1="130" y1="110" x2="75" y2="165" stroke="#e5c07b" stroke-width="1.5" stroke-opacity="0.45"/>
+          <line x1="130" y1="110" x2="185" y2="165" stroke="#3e4451" stroke-width="1" stroke-dasharray="5,3"/>
+          <line x1="75" y1="185" x2="65" y2="225" stroke="#3e4451" stroke-width="1" stroke-dasharray="4,3"/>
+          <line x1="185" y1="185" x2="195" y2="225" stroke="#3e4451" stroke-width="1" stroke-dasharray="4,3"/>
+        </svg>
+
+        <!-- Cluster anchor: Core Concepts -->
+        <div class="cluster-anchor" style="left:50%;top:16px;color:#636d83;background:rgba(171,178,191,0.07);">Core Concepts</div>
+
+        <!-- Cluster anchor: Bash -->
+        <div class="cluster-anchor" style="left:22%;top:140px;color:#98c379;background:rgba(152,195,121,0.07);">Bash</div>
+
+        <!-- Cluster anchor: PowerShell -->
+        <div class="cluster-anchor" style="left:78%;top:140px;color:#61afef;background:rgba(97,175,239,0.07);">PowerShell</div>
+
+        <!-- terminal — done (not selected) -->
+        <div class="node-wrap st-done" style="left:85px;top:50px">
+          <div class="node-c" style="width:40px;height:40px;background:rgba(229,192,123,0.12);border-color:#e5c07b;box-shadow:0 0 8px 2px rgba(229,192,123,0.3)">🖥️</div>
+          <div class="node-lbl">terminal</div>
+        </div>
+
+        <!-- shell — SELECTED -->
+        <div class="node-wrap st-selected" style="left:130px;top:100px">
+          <div class="node-c" style="width:44px;height:44px;background:rgba(229,192,123,0.12)">
+            🐚
+            <div class="checkmark">✓</div>
+          </div>
+          <div class="node-lbl">shell</div>
+        </div>
+
+        <!-- bash — SELECTED -->
+        <div class="node-wrap st-selected" style="left:75px;top:175px">
+          <div class="node-c" style="width:40px;height:40px;background:rgba(152,195,121,0.1)">
+            🐚
+            <div class="checkmark">✓</div>
+          </div>
+          <div class="node-lbl">bash</div>
+        </div>
+
+        <!-- powershell — available (not selected) -->
+        <div class="node-wrap st-avail" style="left:185px;top:175px">
+          <div class="node-c" style="width:38px;height:38px;background:rgba(97,175,239,0.08);border-color:rgba(97,175,239,0.5)">💻</div>
+          <div class="node-lbl">powershell</div>
+        </div>
+
+        <!-- bash cmds — locked -->
+        <div class="node-wrap st-locked" style="left:65px;top:228px">
+          <div class="node-c" style="width:34px;height:34px">⌨️</div>
+          <div class="node-lbl">bash cmds</div>
+        </div>
+
+        <!-- ps cmds — locked -->
+        <div class="node-wrap st-locked" style="left:195px;top:228px">
+          <div class="node-c" style="width:34px;height:34px">⌨️</div>
+          <div class="node-lbl">ps cmds</div>
+        </div>
+
+      </div>
+
+      <!-- Sticky quiz bar -->
+      <div class="quiz-bar">
+        <div class="quiz-bar-inner">
+          <div class="quiz-bar-count"><span>2</span> selected · ~16 questions · ~4 min</div>
+          <button class="quiz-start">Start Quiz (2)</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ COMMAND QUESTION TYPES ═══ -->
+  <div>
+    <div class="col-label">Command question types</div>
+
+    <!-- TYPE 1: Anatomy — tap token then tap label -->
+    <div class="qcard" style="margin-bottom:12px">
+      <div class="qcard-label">
+        <span>Question 5 of 8</span>
+        <span class="pill">anatomy</span>
+      </div>
+      <div class="qcard-q">Tap a part of the command, then tap its label below.</div>
+
+      <div class="cmd-display">
+        <span class="cmd-token t-tool t-selected">git</span>
+        <span class="cmd-token t-sub">commit</span>
+        <span class="cmd-token t-flag">-m</span>
+        <span class="cmd-token t-arg">"fix login"</span>
+      </div>
+
+      <div style="font-size:10px;color:#4b5263;margin-bottom:8px">Selected: <span style="color:#61afef;font-family:monospace">git</span> — tap its label:</div>
+
+      <div class="label-bank">
+        <div class="label-chip label-chip-active">tool / program</div>
+        <div class="label-chip">action / subcommand</div>
+        <div class="label-chip">flag / option</div>
+        <div class="label-chip">argument / value</div>
+      </div>
+
+      <button class="check-btn">Confirm label →</button>
+    </div>
+
+    <!-- TYPE 2: Word bank fill-in -->
+    <div class="qcard">
+      <div class="qcard-label">
+        <span>Question 7 of 8</span>
+        <span class="pill">build command</span>
+      </div>
+      <div class="qcard-q">List all files including hidden ones in the current directory.</div>
+
+      <div class="cmd-template">
+        <span style="color:#5c6370">$</span>
+        <span>ls</span>
+        <span class="blank blank-filled">-a</span>
+      </div>
+
+      <div style="font-size:10px;color:#4b5263;margin-bottom:8px">Tap the correct token to fill the blank:</div>
+
+      <div class="word-bank">
+        <div class="word-chip word-chip-used">-l</div>
+        <div class="word-chip word-chip-used">-a</div>
+        <div class="word-chip">-r</div>
+        <div class="word-chip">--help</div>
+        <div class="word-chip">-h</div>
+      </div>
+
+      <button class="check-btn">Check →</button>
+    </div>
+
+  </div>
+
+</div>
+
+<p style="font-size:11px;color:#3e4451;line-height:1.8">
+  <strong style="color:#636d83">Quiz mode trigger:</strong> "Quiz" button top-right → banner → tap to select → sticky bar with count + time estimate → start.<br>
+  <strong style="color:#636d83">Anatomy type:</strong> tap a command token → it highlights → tap its label below → immediate feedback per pairing.<br>
+  <strong style="color:#636d83">Build command type:</strong> plain English task → command template with blank → word bank of tokens → fill → check.<br>
+  <strong style="color:#636d83">Cluster anchors:</strong> "Core Concepts / Bash / PowerShell" labels float above each spatial group within the zone canvas.
+</p>
+
+</body>
+</html>
