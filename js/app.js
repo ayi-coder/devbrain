@@ -1,45 +1,31 @@
 import { openDB } from './db.js';
-import { concepts } from './concepts.js';
+import { loadCurriculum } from './curriculum-loader.js';
 import { initRouter } from './router.js';
 import { renderHome } from '../views/home.js';
-import { renderConceptMap } from '../views/concept-map.js';
-import { renderLearn } from '../views/learn.js';
+import { renderCurriculum } from '../views/curriculum.js';
+import { renderMap } from '../views/map.js';
 import { renderQuiz } from '../views/quiz.js';
-import { renderResults } from '../views/results.js';
-import { renderProgress } from '../views/progress.js';
 
-// Register service worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js');
 }
 
-// Store concepts globally for views to access
-window.CONCEPTS = concepts;
-
 async function init() {
   await openDB();
+  await loadCurriculum();
 
   initRouter({
-    home: () => renderHome(document.getElementById('view-home')),
-    concepts: () => renderConceptMap(document.getElementById('view-concepts')),
-    learn: (id) => renderLearn(document.getElementById('view-learn'), id),
-    quiz: () => renderQuiz(document.getElementById('view-quiz')),
-    results: () => renderResults(document.getElementById('view-results')),
-    progress: () => {
-      const el = document.getElementById('view-progress');
-      renderProgress(el).catch((err) => {
-        el.innerHTML = '<p style="padding:20px;color:var(--red)">Progress error: ' + err.message + '</p>';
-      });
-    },
+    home:       (params) => renderHome(document.getElementById('view-home'), params),
+    curriculum: (params) => renderCurriculum(document.getElementById('view-curriculum'), params),
+    map:        (params) => renderMap(document.getElementById('view-map'), params),
+    quiz:       (params) => renderQuiz(document.getElementById('view-quiz'), params),
   });
 }
 
 init().catch((err) => {
   console.error('Init failed:', err);
   const el = document.getElementById('view-home');
-  const msg = document.createElement('p');
-  msg.style.cssText = 'padding:20px;color:var(--red)';
-  msg.textContent = 'Failed to start: ' + err.message;
-  el.appendChild(msg);
+  el.textContent = 'Failed to start: ' + err.message;
+  el.style.cssText = 'padding:20px;color:var(--red)';
   el.classList.add('view--active');
 });
