@@ -1,83 +1,108 @@
-import { getDueConceptIds, getAllProgress, getStats } from '../js/db.js';
-import { getLevelTitle, getMasteryStatus } from '../js/adaptive.js';
+import { getSRSQueues, getMapCoverageCount, getAllContent, getRecentSessions } from '../js/db.js';
+import { zoneColor } from '../js/zones.js';
 import { navigate } from '../js/router.js';
 
-export async function renderHome(container) {
-  const [dueIds, allProgress, stats] = await Promise.all([
-    getDueConceptIds(),
-    getAllProgress(),
-    getStats(),
+function nextMilestone(count) {
+  for (const m of [10, 25, 50, 75, 100, 150, 200]) {
+    if (m > count) return m;
+  }
+  return count + 50;
+}
+
+function buildRingSVG(pct) {
+  const r = 15;
+  const circ = 2 * Math.PI * r; // ~94.25
+  const dash = (pct / 100) * circ;
+  const color = pct >= 70 ? '#98c379' : pct >= 40 ? '#e5c07b' : '#e06c75';
+  return '<svg viewBox="0 0 36 36" width="52" height="52">' +
+    '<circle cx="18" cy="18" r="' + r + '" fill="none" stroke="#252935" stroke-width="3.5"/>' +
+    '<circle cx="18" cy="18" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="3.5"' +
+    ' stroke-dasharray="' + dash.toFixed(2) + ' ' + circ.toFixed(2) + '"' +
+    ' stroke-linecap="round" transform="rotate(-90 18 18)"/>' +
+    '<text x="18" y="22" text-anchor="middle" font-size="7.5" fill="#abb2bf"' +
+    ' font-family="Roboto,sans-serif" font-weight="600">' + pct + '%</text>' +
+    '</svg>';
+}
+
+function buildSessionDots(sessions) {
+  if (sessions.length === 0) {
+    return '<div class="home-health__empty">Play your first quiz</div>';
+  }
+  const dots = sessions.slice(0, 5).map((s) => {
+    const pct = s.total_questions > 0 ? s.correct_count / s.total_questions : 0;
+    const color = pct >= 0.70 ? '#98c379' : pct >= 0.40 ? '#e5c07b' : '#e06c75';
+    return '<div class="home-health__dot" style="background:' + color + '" title="' + Math.round(pct * 100) + '%"></div>';
+  }).join('');
+  const label = sessions.length + ' session' + (sessions.length !== 1 ? 's' : '');
+  return '<div class="home-health__dots">' + dots + '</div>' +
+         '<div class="home-health__label">last ' + label + '</div>';
+}
+
+export async function renderHome(container, params = {}, dbName = 'devbrain') {
+  const [{ recommended, overdue }, mapCoverage, allContent, recentSessions] = await Promise.all([
+    getSRSQueues(dbName),
+    getMapCoverageCount(dbName),
+    getAllContent(dbName),
+    getRecentSessions(5, dbName),
   ]);
 
-  const progressMap = new Map();
-  allProgress.forEach((p) => progressMap.set(p.concept_id, p));
+  const totalDue = recommended.length + overdue.length;
+  const totalNonBridge = allContent.filter((c) => !c.is_bridge).length;
+  const coveragePct = totalNonBridge > 0
+    ? Math.min(100, Math.round((mapCoverage / totalNonBridge) * 100))
+    : 0;
+  const milestone = nextMilestone(mapCoverage);
+  const estMin = Math.max(2, totalDue * 2);
 
-  const concepts = window.CONCEPTS;
-  const masteredCount = allProgress.filter(
-    (p) => getMasteryStatus(p) === 'mastered'
-  ).length;
-  const totalConcepts = concepts.length;
-  const levelTitle = getLevelTitle(masteredCount);
-  const streakDays = stats.streak_days || 0;
-  const masteryPct = Math.round((masteredCount / totalConcepts) * 100);
+  const healthPct = recentSessions.length === 0 ? 0
+    : Math.round(
+        (recentSessions.filter((s) =>
+          s.total_questions > 0 && s.correct_count / s.total_questions > 0.6
+        ).length / recentSessions.length) * 100
+      );
 
-  const dueConceptNames = dueIds
-    .slice(0, 5)
-    .map((id) => {
-      const c = concepts.find((x) => x.id === id);
-      return c ? c.name : id;
-    });
-  const extraDue = dueIds.length > 5 ? dueIds.length - 5 : 0;
+  // Concept pills -- up to 5 from recommended, zone color dot + name.
+  // All values come from app-bundled curriculum.json; no user-typed content is interpolated.
+  const pillsHTML = recommended.slice(0, 5).map(({ content }) => {
+    const color = zoneColor(content.zone);
+    return '<div class="home-hero__pill">' +
+      '<span class="home-hero__pill-dot" style="background:' + color + '"></span>' +
+      content.name +
+      '</div>';
+  }).join('');
 
-  const dueChipsHTML = dueIds.length > 0
-    ? dueConceptNames.map((n) => `<span class="chip">${n}</span>`).join(' ') +
-      (extraDue > 0 ? ` <span class="chip chip--blue">+${extraDue} more</span>` : '')
-    : '<p style="color:var(--green)">You\'re all caught up! \u{1F389}</p>';
+  const heroBody = totalDue > 0
+    ? '<div class="home-hero__tag">\u2736 Ready for today</div>' +
+      '<div class="home-hero__title">' + totalDue + ' concept' + (totalDue !== 1 ? 's' : '') + ' due</div>' +
+      '<div class="home-hero__subtitle">Based on your last session \u00b7 ~' + estMin + ' min</div>' +
+      '<div class="home-hero__pills">' + pillsHTML + '</div>' +
+      '<button class="home-hero__cta" id="btn-go-quiz">Go to Quiz \u2192</button>'
+    : '<div class="home-hero__tag">\u2736 All caught up</div>' +
+      '<div class="home-hero__title">Nothing due today</div>' +
+      '<div class="home-hero__subtitle">Check back tomorrow \u2014 your next review is scheduled</div>' +
+      '<button class="home-hero__cta" id="btn-go-quiz">Go to Quiz \u2192</button>';
 
-  const quizBtnClass = dueIds.length === 0 ? 'btn-primary btn-disabled' : 'btn-primary';
+  container.innerHTML =
+    '<div class="home-topbar"><span class="home-logo">DevBrain</span></div>' +
+    '<div class="home-hero">' + heroBody + '</div>' +
+    '<div class="home-stats">' +
+      '<div class="home-stat-card">' +
+        '<div class="home-stat-card__title">Map Coverage</div>' +
+        '<div class="home-stat-card__number">' + mapCoverage + '</div>' +
+        '<div class="home-stat-card__label">concepts explored</div>' +
+        '<div class="home-stat-card__bar">' +
+          '<div class="home-stat-card__bar-fill" style="width:' + coveragePct + '%"></div>' +
+        '</div>' +
+        '<div class="home-stat-card__milestone">Next: ' + milestone + ' concepts</div>' +
+      '</div>' +
+      '<div class="home-stat-card">' +
+        '<div class="home-stat-card__title">Quiz Health</div>' +
+        '<div class="home-health">' +
+          (recentSessions.length > 0 ? buildRingSVG(healthPct) : '') +
+          buildSessionDots(recentSessions) +
+        '</div>' +
+      '</div>' +
+    '</div>';
 
-  container.innerHTML = `
-    <div class="screen-header">
-      <div style="font-size:18px;margin-bottom:4px;">Welcome back,</div>
-      <div style="font-size:22px;font-weight:700;color:var(--yellow);margin-bottom:12px;">${levelTitle}</div>
-      <div style="display:flex;gap:8px;">
-        <span class="chip chip--orange">\u{1F525} ${streakDays} day streak</span>
-        <span class="chip chip--blue">\u2705 ${masteredCount}/${totalConcepts} mastered</span>
-      </div>
-    </div>
-
-    <div class="card card--accent-purple mb-16">
-      <div class="label-small">Due for review</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;">
-        ${dueChipsHTML}
-      </div>
-    </div>
-
-    <button class="${quizBtnClass}" id="btn-start-quiz">\u25B6 Start Today's Quiz</button>
-    <button class="btn-secondary" id="btn-browse">\u{1F4D6} Browse All Concepts</button>
-
-    <div class="mt-16">
-      <div class="label-small">Overall mastery</div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-        <span style="font-size:13px;">${masteredCount} of ${totalConcepts} concepts</span>
-        <span style="font-size:13px;color:var(--blue);">${masteryPct}%</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width:${masteryPct}%"></div>
-      </div>
-    </div>
-  `;
-
-  container.querySelector('#btn-start-quiz').addEventListener('click', () => {
-    if (dueIds.length === 0) return;
-    sessionStorage.setItem('quizParams', JSON.stringify({
-      conceptIds: dueIds,
-      sessionType: 'standard',
-    }));
-    navigate('#quiz');
-  });
-
-  container.querySelector('#btn-browse').addEventListener('click', () => {
-    navigate('#concepts');
-  });
+  container.querySelector('#btn-go-quiz').addEventListener('click', () => navigate('quiz'));
 }
