@@ -72,8 +72,7 @@ export async function renderResults(container) {
         concepts_tested: conceptIds,
         session_type: sessionType,
       });
-      history.replaceState(null, '', '#home');
-      navigate('#home');
+      navigate('home');
     } catch (err) {
       console.error('Error saving results:', err);
       const btn = container.querySelector('#btn-done');

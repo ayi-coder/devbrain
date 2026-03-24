@@ -89,7 +89,7 @@ export async function saveSession(sessionData) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction('quiz_sessions', 'readwrite');
     const store = tx.objectStore('quiz_sessions');
-    const req = store.add(sessionData);
+    const req = store.put(sessionData);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
