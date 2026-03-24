@@ -1,4 +1,4 @@
-import { getSRSQueues, getMapCoverageCount, getAllContent, getRecentSessions } from '../js/db.js';
+import { getSRSQueues, getConceptCounts, getRecentSessions } from '../js/db.js';
 import { zoneColor } from '../js/zones.js';
 import { navigate } from '../js/router.js';
 
@@ -39,15 +39,13 @@ function buildSessionDots(sessions) {
 }
 
 export async function renderHome(container, params = {}, dbName = 'devbrain') {
-  const [{ recommended, overdue }, mapCoverage, allContent, recentSessions] = await Promise.all([
+  const [{ recommended, overdue }, { coverage: mapCoverage, total: totalNonBridge }, recentSessions] = await Promise.all([
     getSRSQueues(dbName),
-    getMapCoverageCount(dbName),
-    getAllContent(dbName),
+    getConceptCounts(dbName),
     getRecentSessions(5, dbName),
   ]);
 
   const totalDue = recommended.length + overdue.length;
-  const totalNonBridge = allContent.filter((c) => !c.is_bridge).length;
   const coveragePct = totalNonBridge > 0
     ? Math.min(100, Math.round((mapCoverage / totalNonBridge) * 100))
     : 0;

@@ -230,12 +230,20 @@ export async function getSRSQueues(dbName = DB_NAME_PROD) {
 }
 
 export async function getMapCoverageCount(dbName = DB_NAME_PROD) {
+  const { coverage } = await getConceptCounts(dbName);
+  return coverage;
+}
+
+/** Returns { coverage: practiced non-bridge count, total: all non-bridge count }. */
+export async function getConceptCounts(dbName = DB_NAME_PROD) {
   const [allContent, allProgress] = await Promise.all([
     getAllContent(dbName),
     getAllUserProgress(dbName),
   ]);
   const bridgeIds = new Set(allContent.filter((c) => c.is_bridge).map((c) => c.id));
-  return allProgress.filter((p) => p.practiced && !bridgeIds.has(p.id)).length;
+  const total = allContent.filter((c) => !c.is_bridge).length;
+  const coverage = allProgress.filter((p) => p.practiced && !bridgeIds.has(p.id)).length;
+  return { coverage, total };
 }
 
 // ── Session history (unchanged API from v1) ────────────────────────────────
