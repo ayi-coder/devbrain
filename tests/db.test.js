@@ -1,6 +1,9 @@
 import 'fake-indexeddb/auto';
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { openDB, _resetDB, seedContent, getAllContent, getContentByZone,
+  getUserProgress, getAllUserProgress, upsertUserProgress, markSeen,
+  getSRSQueues, getMapCoverageCount, saveSession, getRecentSessions } from '../js/db.js';
 
 // Each describe block uses a unique DB name to prevent cross-test contamination.
 // Pass the name to openDB() so each test group gets its own IndexedDB database.
@@ -212,5 +215,45 @@ describe('DB query API', () => {
 
     const count = await getMapCoverageCount(DB);
     assert.equal(count, 2, 'only 2 non-bridge practiced concepts counted');
+  });
+});
+
+describe('getRecentSessions', () => {
+  const uid = () => `test-sessions-${Math.random().toString(36).slice(2)}`;
+
+  test('returns empty array when no sessions exist', async () => {
+    const dbName = uid();
+    await openDB(dbName);
+    const result = await getRecentSessions(5, dbName);
+    assert.deepEqual(result, []);
+  });
+
+  test('returns sessions sorted newest-first', async () => {
+    const dbName = uid();
+    await openDB(dbName);
+    await saveSession({ session_id: 'a', date: '2026-03-20', total_questions: 5, correct_count: 3 }, dbName);
+    await saveSession({ session_id: 'b', date: '2026-03-24', total_questions: 5, correct_count: 4 }, dbName);
+    await saveSession({ session_id: 'c', date: '2026-03-22', total_questions: 5, correct_count: 2 }, dbName);
+
+    const result = await getRecentSessions(5, dbName);
+    assert.equal(result.length, 3);
+    assert.equal(result[0].session_id, 'b'); // newest first
+    assert.equal(result[1].session_id, 'c');
+    assert.equal(result[2].session_id, 'a');
+  });
+
+  test('caps results at n', async () => {
+    const dbName = uid();
+    await openDB(dbName);
+    for (let i = 0; i < 7; i++) {
+      await saveSession({
+        session_id: `s${i}`,
+        date: `2026-03-${String(i + 10).padStart(2, '0')}`,
+        total_questions: 3,
+        correct_count: 2,
+      }, dbName);
+    }
+    const result = await getRecentSessions(5, dbName);
+    assert.equal(result.length, 5);
   });
 });

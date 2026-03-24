@@ -269,3 +269,16 @@ export async function updateStats(data, dbName = DB_NAME_PROD) {
     tx.onerror = () => reject(tx.error);
   });
 }
+
+export async function getRecentSessions(n = 5, dbName = DB_NAME_PROD) {
+  const db = getDB(dbName);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('quiz_sessions', 'readonly');
+    tx.objectStore('quiz_sessions').getAll().onsuccess = (e) => {
+      const all = e.target.result;
+      all.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+      resolve(all.slice(0, n));
+    };
+    tx.onerror = () => reject(tx.error);
+  });
+}
