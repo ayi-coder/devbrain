@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devbrain-v2';
+const CACHE_NAME = 'devbrain-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -14,6 +14,7 @@ const ASSETS = [
   './views/learn.js',
   './views/quiz.js',
   './views/results.js',
+  './views/progress.js',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];

@@ -6,6 +6,7 @@ import { renderConceptMap } from '../views/concept-map.js';
 import { renderLearn } from '../views/learn.js';
 import { renderQuiz } from '../views/quiz.js';
 import { renderResults } from '../views/results.js';
+import { renderProgress } from '../views/progress.js';
 
 // Register service worker
 if ('serviceWorker' in navigator) {
@@ -24,6 +25,7 @@ async function init() {
     learn: (id) => renderLearn(document.getElementById('view-learn'), id),
     quiz: () => renderQuiz(document.getElementById('view-quiz')),
     results: () => renderResults(document.getElementById('view-results')),
+    progress: () => renderProgress(document.getElementById('view-progress')),
   });
 }
 
