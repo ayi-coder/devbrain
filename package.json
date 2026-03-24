@@ -1,0 +1,10 @@
+{
+  "name": "devbrain",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/db.test.js tests/curriculum-loader.test.js"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.0.0"
+  }
+}
