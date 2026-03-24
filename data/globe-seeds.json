@@ -1,0 +1,51 @@
+{
+  "zones": [
+    { "id": "your-machine",      "color": "#c678dd", "seed": [-30,  25] },
+    { "id": "shell-terminal",    "color": "#e5c07b", "seed": [ 20, -15] },
+    { "id": "git-github",        "color": "#e06c75", "seed": [ 60,  40] },
+    { "id": "the-web",           "color": "#61afef", "seed": [110,  10] },
+    { "id": "editor-code",       "color": "#98c379", "seed": [150, -35] },
+    { "id": "packages-env",      "color": "#56b6c2", "seed": [-100, 50] },
+    { "id": "ai-prompting",      "color": "#d19a66", "seed": [ -60, -50] },
+    { "id": "cloud-deploy",      "color": "#abb2bf", "seed": [-150,  15] }
+  ],
+  "subcategories": [
+    { "id": "operating-systems",   "zone": "your-machine",   "seed": [-32,  27] },
+    { "id": "file-system",         "zone": "your-machine",   "seed": [-28,  23] },
+    { "id": "system-concepts",     "zone": "your-machine",   "seed": [-26,  28] },
+
+    { "id": "shell-core",          "zone": "shell-terminal", "seed": [ 18, -13] },
+    { "id": "bash-commands",       "zone": "shell-terminal", "seed": [ 22, -17] },
+    { "id": "powershell-commands", "zone": "shell-terminal", "seed": [ 24, -12] },
+    { "id": "scripting",           "zone": "shell-terminal", "seed": [ 16, -18] },
+
+    { "id": "git-core",            "zone": "git-github",     "seed": [ 58,  38] },
+    { "id": "git-commands",        "zone": "git-github",     "seed": [ 62,  42] },
+    { "id": "github",              "zone": "git-github",     "seed": [ 60,  36] },
+
+    { "id": "how-web-works",       "zone": "the-web",        "seed": [108,   8] },
+    { "id": "apis-data",           "zone": "the-web",        "seed": [112,  12] },
+    { "id": "tools-security",      "zone": "the-web",        "seed": [110,   6] },
+
+    { "id": "vscode",              "zone": "editor-code",    "seed": [148, -33] },
+    { "id": "code-fundamentals",   "zone": "editor-code",    "seed": [152, -37] },
+    { "id": "software-concepts",   "zone": "editor-code",    "seed": [150, -32] },
+
+    { "id": "package-managers",    "zone": "packages-env",   "seed": [-102, 48] },
+    { "id": "project-config",      "zone": "packages-env",   "seed": [  -98, 52] },
+    { "id": "dependencies",        "zone": "packages-env",   "seed": [-100, 46] },
+
+    { "id": "how-ai-works",        "zone": "ai-prompting",   "seed": [ -62, -52] },
+    { "id": "using-ai-tools",      "zone": "ai-prompting",   "seed": [ -58, -48] },
+    { "id": "prompting",           "zone": "ai-prompting",   "seed": [ -60, -54] },
+
+    { "id": "deployment",          "zone": "cloud-deploy",   "seed": [-152,  13] },
+    { "id": "databases",           "zone": "cloud-deploy",   "seed": [-148,  17] },
+    { "id": "storage",             "zone": "cloud-deploy",   "seed": [-150,  12] }
+  ],
+  "concepts": [
+    { "id": "your-machine-os",         "subcategory": "operating-systems", "seed": [-31,  26] },
+    { "id": "your-machine-filesystem", "subcategory": "file-system",       "seed": [-29,  24] },
+    { "id": "shell-terminal-mkdir",    "subcategory": "bash-commands",     "seed": [ 23, -18] }
+  ]
+}
