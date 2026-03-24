@@ -25,7 +25,12 @@ async function init() {
     learn: (id) => renderLearn(document.getElementById('view-learn'), id),
     quiz: () => renderQuiz(document.getElementById('view-quiz')),
     results: () => renderResults(document.getElementById('view-results')),
-    progress: () => renderProgress(document.getElementById('view-progress')),
+    progress: () => {
+      const el = document.getElementById('view-progress');
+      renderProgress(el).catch((err) => {
+        el.innerHTML = '<p style="padding:20px;color:var(--red)">Progress error: ' + err.message + '</p>';
+      });
+    },
   });
 }
 
