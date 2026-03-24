@@ -4,17 +4,43 @@ export function setQuizActive(val) {
   quizActive = val;
 }
 
-export function navigate(hash, params = {}) {
-  sessionStorage.setItem('routeParams', JSON.stringify(params));
-  location.hash = hash;
+/**
+ * Pure function -- exported for tests.
+ * Parses a full location.hash string (e.g. '#quiz?preload=foo') into { view, params }.
+ */
+export function parseHashParams(hash) {
+  const raw = (hash || '').replace(/^#/, '') || 'home';
+  const [path, query] = raw.split('?');
+  const view = path.split('/')[0] || 'home';
+  const params = {};
+  if (query) {
+    for (const part of query.split('&')) {
+      const eqIdx = part.indexOf('=');
+      if (eqIdx === -1) continue;
+      const k = decodeURIComponent(part.slice(0, eqIdx));
+      const v = decodeURIComponent(part.slice(eqIdx + 1));
+      params[k] = v;
+    }
+  }
+  return { view, params };
 }
 
-export function getParams() {
-  try {
-    return JSON.parse(sessionStorage.getItem('routeParams') || '{}');
-  } catch {
-    return {};
-  }
+/**
+ * Pure function -- exported for tests.
+ * Builds a hash string from a view name and optional params object.
+ * Omits params with empty/undefined values.
+ */
+export function buildHashString(view, params = {}) {
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+  if (entries.length === 0) return view;
+  const query = entries
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&');
+  return `${view}?${query}`;
+}
+
+export function navigate(view, params = {}) {
+  location.hash = buildHashString(view, params);
 }
 
 export function initRouter(routes) {
@@ -23,10 +49,9 @@ export function initRouter(routes) {
 }
 
 function handleRoute(routes) {
-  const raw = location.hash.replace('#', '') || 'home';
-  const [view, ...rest] = raw.split('/');
+  const { view, params } = parseHashParams(location.hash);
 
-  if (quizActive && view !== 'quiz' && view !== 'results') {
+  if (quizActive && view !== 'quiz') {
     const leave = confirm('Quit quiz? Progress will be lost.');
     if (!leave) {
       location.hash = 'quiz';
@@ -35,27 +60,14 @@ function handleRoute(routes) {
     quizActive = false;
   }
 
-  // Hide all views
-  document.querySelectorAll('.view').forEach((el) => {
-    el.classList.remove('view--active');
-  });
+  document.querySelectorAll('.view').forEach((el) => el.classList.remove('view--active'));
 
-  // Show target view
   const target = document.getElementById('view-' + view);
-  if (target) {
-    target.classList.add('view--active');
-  }
+  if (target) target.classList.add('view--active');
 
-  // Call route handler
-  if (routes[view]) {
-    routes[view](rest.join('/'));
-  }
+  if (routes[view]) routes[view](params);
 
-  // Update bottom nav active tab
   document.querySelectorAll('.nav-tab').forEach((tab) => {
-    tab.classList.remove('nav-tab--active');
-    if (tab.dataset.view === view) {
-      tab.classList.add('nav-tab--active');
-    }
+    tab.classList.toggle('nav-tab--active', tab.dataset.view === view);
   });
 }
