@@ -30,7 +30,11 @@ export async function openDB(name = DB_NAME_PROD) {
         db.createObjectStore('user_stats', { keyPath: 'id' });
       }
 
-      // Migrate v1 concept_progress → user-progress (leave old store orphaned)
+      // Migrate v1 concept_progress → user-progress (leave old store orphaned).
+      // The upgrade transaction stays alive as long as there are pending requests on it.
+      // getAll() queues a request; its onsuccess callback queues put() requests before
+      // returning — so the transaction cannot commit until all puts complete. This is
+      // correct IDB behavior per spec (not a race condition).
       if (event.oldVersion < 2 && db.objectStoreNames.contains('concept_progress')) {
         const oldStore = tx.objectStore('concept_progress');
         const newStore = tx.objectStore('user-progress');

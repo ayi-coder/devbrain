@@ -12,8 +12,10 @@ const DEFAULT_PROGRESS = {
 };
 
 export async function loadCurriculum(dbName = 'devbrain') {
-  const existing = await getAllContent(dbName);
-  if (existing.length > 0) return; // already seeded — idempotent
+  // Guard on progress records (not content) so a partially-completed seed — where content
+  // was written but the tab was killed before progress writes finished — gets retried.
+  const existingProgress = await getAllUserProgress(dbName);
+  if (existingProgress.length > 0) return; // already seeded — idempotent
 
   const response = await fetch('/data/curriculum.json');
   if (!response.ok) throw new Error(`Failed to load curriculum: ${response.status}`);
@@ -21,7 +23,6 @@ export async function loadCurriculum(dbName = 'devbrain') {
 
   await seedContent(concepts, dbName);
 
-  const existingProgress = await getAllUserProgress(dbName);
   const seenIds = new Set(existingProgress.map((p) => p.id));
 
   for (const concept of concepts) {
