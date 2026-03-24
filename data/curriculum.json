@@ -1,0 +1,307 @@
+[
+  {
+    "id": "your-machine-os",
+    "name": "Operating System (OS)",
+    "zone": "your-machine",
+    "subcategory": "operating-systems",
+    "tier_unlocked": 1,
+    "is_bridge": false,
+    "bridge_zones": [],
+    "what_it_is": "The operating system is the software that runs your computer before anything else starts. It manages your hardware (screen, keyboard, memory) and lets all your other programs run on top of it. Without it, your computer is just metal.",
+    "analogy": "Think of it like the manager of a restaurant. The manager doesn't cook food or serve customers directly — but nothing works without them. They make sure the kitchen (hardware) and the waiters (apps) can all do their jobs without stepping on each other.",
+    "examples": [
+      { "text": "When you click a file to open it, your OS decides which app should open it, allocates the memory to run that app, and draws the window on screen. You never think about this — the OS just handles it.", "visible": true },
+      { "text": "When you plug in a USB drive, your OS detects it, loads the correct driver to understand the device, and mounts it so you can see the files. Every device interaction goes through the OS first.", "visible": false },
+      { "text": "When two apps want to use your Wi-Fi at the same time, the OS decides how to share the network connection between them. It's constantly juggling resources so nothing crashes into anything else.", "visible": false }
+    ],
+    "example_command": null,
+    "use_when": "You hear someone ask \"what OS are you on?\" — they're asking whether you're using Windows, macOS, or Linux because the answer changes what commands you'll type and what software you can run.",
+    "questions": {
+      "definition": [
+        {
+          "prompt": "What is the main job of an operating system?",
+          "options": [
+            "It writes your code for you",
+            "It manages your hardware and lets apps run on top of it",
+            "It connects you to the internet",
+            "It stores your files on the hard drive"
+          ],
+          "correct_index": 1
+        },
+        {
+          "prompt": "Which of these is an operating system?",
+          "options": ["Google Chrome", "Microsoft Word", "macOS", "VS Code"],
+          "correct_index": 2
+        }
+      ],
+      "usage": [
+        {
+          "prompt": "A developer says \"this app only runs on Linux.\" What does that mean?",
+          "options": [
+            "The app only works on computers made by Linux Inc.",
+            "The app was built for the Linux OS and won't work on Windows or macOS without changes",
+            "The app requires a Linux keyboard",
+            "The app was written in the Linux programming language"
+          ],
+          "correct_index": 1
+        },
+        {
+          "prompt": "You want to install a new program. Why does the OS matter?",
+          "options": [
+            "The OS controls how fast you can type",
+            "All programs work on all operating systems without differences",
+            "Different OSes use different file formats and system calls, so programs are built for specific ones",
+            "The OS determines how expensive the program will be"
+          ],
+          "correct_index": 2
+        },
+        {
+          "prompt": "Someone shares a `.exe` file with you. You're on a Mac. What's the problem?",
+          "options": [
+            ".exe files are too large for macOS",
+            "macOS doesn't support files with more than 3 letters in the extension",
+            ".exe is a Windows executable format — macOS uses a different format and can't run it directly",
+            "You need to update your OS to open .exe files"
+          ],
+          "correct_index": 2
+        },
+        {
+          "prompt": "When you open two apps at the same time and your computer slows down, what is the OS doing?",
+          "options": [
+            "Downloading updates in the background",
+            "Waiting for you to close one app before allocating resources",
+            "Sharing limited CPU and RAM between both apps simultaneously, causing resource contention",
+            "Restarting its internal memory manager"
+          ],
+          "correct_index": 2
+        },
+        {
+          "prompt": "A friend says their computer \"crashed.\" In OS terms, what most likely happened?",
+          "options": [
+            "The hard drive physically broke",
+            "The internet connection dropped",
+            "A program or the OS itself encountered an unrecoverable error and stopped executing",
+            "The computer ran out of storage space"
+          ],
+          "correct_index": 2
+        },
+        {
+          "prompt": "You install the same app on Windows and macOS. Why might it look slightly different on each?",
+          "options": [
+            "The app has two different codebases for aesthetic reasons",
+            "Each OS provides its own UI components and rendering engine that apps use by default",
+            "macOS displays everything 20% larger than Windows",
+            "The app detects your screen resolution and adjusts accordingly"
+          ],
+          "correct_index": 1
+        }
+      ],
+      "anatomy": [],
+      "build": []
+    }
+  },
+  {
+    "id": "your-machine-filesystem",
+    "name": "File System",
+    "zone": "your-machine",
+    "subcategory": "file-system",
+    "tier_unlocked": 1,
+    "is_bridge": false,
+    "bridge_zones": [],
+    "what_it_is": "The file system is how your computer organizes and stores everything on your hard drive. It's the system that knows where every file lives, what it's called, and how to find it when you ask for it.",
+    "analogy": "It's like the filing cabinet system in an office. The cabinet itself is your hard drive. The drawers are folders. The files inside are documents. The file system is the rulebook that says how everything gets labeled and where it goes — so you can find it later.",
+    "examples": [
+      { "text": "When you save a Word document to your Desktop, the file system records its name, size, and exact location on the disk. When you double-click it later, the OS asks the file system \"where is this file?\" and gets directed straight to it.", "visible": true },
+      { "text": "When you delete a file and empty the Trash, the file system marks that space as available — but the data isn't immediately gone. Until something else writes over that space, specialized tools can sometimes recover it.", "visible": false },
+      { "text": "Different OSes use different file systems: Windows uses NTFS, macOS uses APFS, and most Linux systems use ext4. When you plug a USB drive formatted in NTFS into a Mac, macOS can usually read it — but it needs to understand the NTFS rulebook to do so.", "visible": false }
+    ],
+    "example_command": null,
+    "use_when": "You hear someone talk about \"paths,\" \"directories,\" or \"where a file is stored\" — they're describing the file system structure. Understanding it helps you navigate the terminal confidently.",
+    "questions": {
+      "definition": [
+        {
+          "prompt": "What does the file system do?",
+          "options": [
+            "It scans files for viruses",
+            "It organizes and tracks where every file is stored on your disk",
+            "It compresses files to save space",
+            "It syncs files to the cloud automatically"
+          ],
+          "correct_index": 1
+        },
+        {
+          "prompt": "Which of these best describes the file system?",
+          "options": [
+            "A program you install to manage files",
+            "A type of internet storage",
+            "The rulebook your OS uses to store and find files on disk",
+            "The physical hard drive in your computer"
+          ],
+          "correct_index": 2
+        }
+      ],
+      "usage": [
+        {
+          "prompt": "You save a file to your Desktop. What role does the file system play?",
+          "options": [
+            "It uploads a backup to the cloud",
+            "It records the file's name and exact location on disk so it can be retrieved later",
+            "It converts the file into binary automatically",
+            "It checks if the file already exists and deletes it if so"
+          ],
+          "correct_index": 1
+        },
+        {
+          "prompt": "You delete a file and empty the Trash. Is the data truly gone?",
+          "options": [
+            "Yes — deleting a file immediately overwrites the data",
+            "Yes — the file system erases it from the hard drive instantly",
+            "No — the file system marks the space as available but doesn't wipe it immediately",
+            "No — files are never deleted; they're just hidden"
+          ],
+          "correct_index": 2
+        },
+        {
+          "prompt": "You plug a Windows-formatted USB into a Mac. Why can the Mac sometimes read it?",
+          "options": [
+            "All file systems are identical across OSes",
+            "macOS automatically reformats the drive",
+            "macOS includes support for the NTFS file system used by Windows",
+            "The Mac copies the files to a temporary location before reading them"
+          ],
+          "correct_index": 2
+        },
+        {
+          "prompt": "A developer mentions a \"path\" to a file. What are they describing?",
+          "options": [
+            "The network route the file takes to download",
+            "The history of edits made to the file",
+            "The file system address that locates the file on disk",
+            "A type of encrypted file format"
+          ],
+          "correct_index": 2
+        },
+        {
+          "prompt": "What happens when two files have the same name in the same folder?",
+          "options": [
+            "Both are kept — the file system adds a number to one",
+            "The file system allows it and merges their contents",
+            "The file system prevents it — only one file can use a given name in the same location",
+            "Both files are renamed with a timestamp"
+          ],
+          "correct_index": 2
+        },
+        {
+          "prompt": "Your hard drive is full. From a file system perspective, what can't happen?",
+          "options": [
+            "The OS can't find existing files",
+            "The file system has no available space to record new file locations, so new files can't be saved",
+            "Existing files are automatically compressed",
+            "The file system resets to factory defaults"
+          ],
+          "correct_index": 1
+        }
+      ],
+      "anatomy": [],
+      "build": []
+    }
+  },
+  {
+    "id": "shell-terminal-mkdir",
+    "name": "mkdir",
+    "zone": "shell-terminal",
+    "subcategory": "bash-commands",
+    "tier_unlocked": 1,
+    "is_bridge": false,
+    "bridge_zones": [],
+    "what_it_is": "`mkdir` stands for \"make directory.\" It creates a new folder from the terminal. One command, and you have a new directory exactly where you want it.",
+    "analogy": "Exactly like right-clicking on your desktop and choosing \"New Folder\" — except you can name it, place it anywhere, and even create nested folders all in one command.",
+    "examples": [
+      { "text": "`mkdir my-project` creates a folder called `my-project` in your current directory. Run `ls` afterward and it appears in the list.", "visible": true },
+      { "text": "`mkdir -p src/components/buttons` creates the full path even if `src` and `components` don't exist yet. The `-p` flag (\"parents\") creates all the intermediate directories automatically.", "visible": false },
+      { "text": "`mkdir images css js` creates three directories at once in a single command. Separating names with spaces creates each as a separate directory.", "visible": false }
+    ],
+    "example_command": "mkdir my-project",
+    "use_when": "Setting up a new project structure, adding a new section to an existing project, or whenever you need to create folders from the terminal without leaving the command line.",
+    "questions": {
+      "definition": [
+        {
+          "prompt": "What does `mkdir` do?",
+          "options": [
+            "Moves a directory to a new location",
+            "Creates a new directory",
+            "Lists the contents of a directory",
+            "Deletes a directory"
+          ],
+          "correct_index": 1
+        },
+        {
+          "prompt": "What does `mkdir` stand for?",
+          "options": ["Modify Directory", "Move Directory", "Make Directory", "Map Directory"],
+          "correct_index": 2
+        }
+      ],
+      "usage": [
+        {
+          "prompt": "You want to create a folder called `components` inside an existing `src` folder without navigating into it. What do you type?",
+          "options": [
+            "mkdir components src",
+            "touch src/components",
+            "mkdir src/components",
+            "cd src && touch components"
+          ],
+          "correct_index": 2
+        },
+        {
+          "prompt": "You run `mkdir src/components/buttons` and get \"No such file or directory.\" What flag fixes this?",
+          "options": ["-r", "-f", "-v", "-p — creates parent directories as needed"],
+          "correct_index": 3
+        },
+        {
+          "prompt": "What command creates three folders (`css`, `js`, `images`) at once?",
+          "options": [
+            "mkdir css+js+images",
+            "mkdir css; mkdir js; mkdir images",
+            "mkdir [css, js, images]",
+            "mkdir css js images"
+          ],
+          "correct_index": 3
+        }
+      ],
+      "anatomy": [
+        {
+          "prompt": "In `mkdir -p a/b/c`, if only `a` exists, what directories get created?",
+          "options": [
+            "Only `c`",
+            "Only `b/c`",
+            "`a` gets recreated, plus `b` and `c`",
+            "`b` inside `a`, and `c` inside `b` — the full path is created"
+          ],
+          "correct_index": 3
+        },
+        {
+          "prompt": "You run `mkdir my project` (with a space). What happens?",
+          "options": [
+            "Creates a directory called `my project`",
+            "Creates nothing — spaces aren't allowed in names",
+            "Creates two directories: `my` and `project`",
+            "Creates a directory called `my_project`"
+          ],
+          "correct_index": 2
+        }
+      ],
+      "build": [
+        {
+          "prompt": "What single command creates the directory structure `project/src/components`?",
+          "options": [
+            "mkdir project src components",
+            "mkdir project && cd project && mkdir src && cd src && mkdir components",
+            "mkdir -p project/src/components",
+            "touch project/src/components"
+          ],
+          "correct_index": 2
+        }
+      ]
+    }
+  }
+]
