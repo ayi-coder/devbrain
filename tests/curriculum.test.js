@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { openDB, _resetDB, seedContent, upsertUserProgress } from '../js/db.js';
+import { openDB, _resetDB, seedContent, upsertUserProgress, getUserProgress } from '../js/db.js';
 import { parseLinks, conceptStatus, renderCurriculum, _resetCurriculumState } from '../views/curriculum.js';
 
 // Stub location so navigate() calls don't throw in Node.js
@@ -146,5 +146,26 @@ describe('renderCurriculum', () => {
     await renderCurriculum(container, {}, dbName);
 
     assert.ok(container.innerHTML.includes('mkdir'), 'concept name shown in list');
+  });
+
+  it('marks concept as seen when lesson screen is rendered', async () => {
+    const dbName = mkName();
+    await openDB(dbName);
+    await seedContent([sampleConcept], dbName);
+    await upsertUserProgress({ ...defaultProg, id: 'c1', seen: false }, dbName);
+
+    // Simulate user having navigated directly to the lesson
+    _resetCurriculumState({
+      navStack: [{
+        type: 'lesson', conceptId: 'c1',
+        zoneId: 'shell-terminal', subcatId: 'bash-commands',
+      }],
+    });
+
+    const container = makeMockContainer();
+    await renderCurriculum(container, {}, dbName);
+
+    const updated = await getUserProgress('c1', dbName);
+    assert.equal(updated.seen, true, 'seen should be true after lesson render');
   });
 });

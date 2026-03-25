@@ -1,4 +1,4 @@
-import { getCurriculumData } from '../js/db.js';
+import { getCurriculumData, markSeen, getUserProgress } from '../js/db.js';
 import { zoneColor, ZONE_NAMES, subcatName } from '../js/zones.js';
 import { navigate } from '../js/router.js';
 
@@ -204,8 +204,100 @@ function _renderConceptList(container, data, { zoneId, subcatId }, dbName) {
   });
 }
 
-// ── Level 4: lesson screen (stub — filled in Task 5) ───────────────────
+// ── Level 4: lesson screen ─────────────────────────────────────────────
 
 async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, dbName) {
-  container.innerHTML = '<p style="padding:20px;color:#4b5263">Lesson screen — Task 5</p>';
+  const concept = data.contentMap.get(conceptId);
+  if (!concept) {
+    container.innerHTML = '<p style="padding:20px;color:var(--red)">Concept not found</p>';
+    return;
+  }
+
+  const color = zoneColor(zoneId);
+  const zoneName = ZONE_NAMES[zoneId] ?? zoneId;
+  const subcatDisplayName = subcatName(subcatId);
+
+  // Mark concept as seen and refresh progressMap so concept list shows updated status on back
+  await markSeen(conceptId, dbName);
+  const updatedProgress = await getUserProgress(conceptId, dbName);
+  if (updatedProgress) data.progressMap.set(conceptId, updatedProgress);
+
+  // Command block (only if concept has an example_command)
+  const commandBlock = concept.example_command
+    ? '<div class="lesson-section">' +
+        '<div class="lesson-section__label">Example Command</div>' +
+        '<div class="lesson__command">' + concept.example_command + '</div>' +
+      '</div>'
+    : '';
+
+  // Examples: first visible one always shown; remaining behind Read more toggle
+  const visible = concept.examples.filter((e) => e.visible);
+  const hidden = concept.examples.filter((e) => !e.visible);
+  const visibleHtml = visible.map((e) => '<div class="lesson__example">' + e.text + '</div>').join('');
+  const hiddenHtml = hidden.length > 0
+    ? '<div class="lesson__hidden-examples" style="display:none">' +
+        hidden.map((e) => '<div class="lesson__example">' + e.text + '</div>').join('') +
+      '</div>' +
+      '<button class="lesson__read-more">Read more \u25be</button>'
+    : '';
+
+  container.innerHTML =
+    '<div class="curriculum-screen__header">' +
+      '<button class="curriculum-screen__back">\u2190 ' + subcatDisplayName + '</button>' +
+    '</div>' +
+    '<div class="lesson">' +
+      '<div class="lesson__name">' + concept.name + '</div>' +
+      '<span class="lesson__zone-tag" style="background:' + color + '">' + zoneName + '</span>' +
+      '<div class="lesson-section">' +
+        '<div class="lesson-section__label">What it is</div>' +
+        '<div class="lesson-section__text" id="lesson-what-it-is">' + concept.what_it_is + '</div>' +
+      '</div>' +
+      commandBlock +
+      '<div class="lesson-section">' +
+        '<div class="lesson-section__label">Examples</div>' +
+        visibleHtml +
+        hiddenHtml +
+      '</div>' +
+      '<div class="lesson-section">' +
+        '<div class="lesson-section__label">Use it when</div>' +
+        '<div class="lesson-section__text">' + concept.use_when + '</div>' +
+      '</div>' +
+      '<div class="lesson-actions">' +
+        '<button class="lesson-actions__btn lesson-actions__btn--secondary" id="btn-test-self">' +
+          'Test yourself \u2192' +
+        '</button>' +
+        '<button class="lesson-actions__btn lesson-actions__btn--primary" id="btn-add-quiz">' +
+          'Add to Quiz \u2192' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+
+  container.querySelector('.curriculum-screen__back').addEventListener('click', () => {
+    _navStack.pop();
+    _render(container, data, dbName).catch((err) => {
+      container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+    });
+  });
+
+  container.querySelector('#btn-test-self').addEventListener('click', () => {
+    navigate('quiz', { preload: conceptId });
+  });
+
+  container.querySelector('#btn-add-quiz').addEventListener('click', () => {
+    navigate('quiz', { preload: conceptId });
+  });
+
+  const readMoreBtn = container.querySelector('.lesson__read-more');
+  if (readMoreBtn) {
+    readMoreBtn.addEventListener('click', () => {
+      const hiddenSection = container.querySelector('.lesson__hidden-examples');
+      if (hiddenSection.style.display === 'none') {
+        hiddenSection.style.display = 'block';
+        readMoreBtn.textContent = 'Read less \u25b4';
+      } else {
+        hiddenSection.style.display = 'none';
+        readMoreBtn.textContent = 'Read more \u25be';
+      }
+    });
+  }
 }
