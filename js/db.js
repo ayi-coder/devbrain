@@ -294,6 +294,52 @@ export async function getCurriculumData(dbName = DB_NAME_PROD) {
   return { totalConcepts: allNonBridge.length, zones, contentMap, progressMap };
 }
 
+/**
+ * Records a quiz answer: marks practiced, updates SM-2 scheduling fields,
+ * and appends qIndex to used_question_indices[qType].
+ *
+ * qType: 'definition' | 'usage' | 'anatomy' | 'build'
+ * qIndex: 0-based index into concept.questions[qType]
+ */
+export async function applyQuizResult(conceptId, isCorrect, qType, qIndex, dbName = DB_NAME_PROD) {
+  const existing = await getUserProgress(conceptId, dbName);
+  if (!existing) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+  let { ease_factor, interval, repetitions } = existing;
+
+  if (isCorrect) {
+    if (repetitions === 0)      interval = 1;
+    else if (repetitions === 1) interval = 6;
+    else                        interval = Math.round(interval * ease_factor);
+    ease_factor = Math.max(1.3, ease_factor + 0.1);
+    repetitions++;
+  } else {
+    repetitions = 0;
+    interval = 1;
+    ease_factor = Math.max(1.3, ease_factor - 0.2);
+  }
+
+  const nextDate = new Date();
+  nextDate.setDate(nextDate.getDate() + interval);
+  const next_review_date = nextDate.toISOString().slice(0, 10);
+
+  const usedForType = existing.used_question_indices[qType] ?? [];
+  await upsertUserProgress({
+    ...existing,
+    practiced: true,
+    ease_factor,
+    interval,
+    repetitions,
+    next_review_date,
+    last_review_date: today,
+    used_question_indices: {
+      ...existing.used_question_indices,
+      [qType]: usedForType.includes(qIndex) ? usedForType : [...usedForType, qIndex],
+    },
+  }, dbName);
+}
+
 // ── Session history (unchanged API from v1) ────────────────────────────────
 
 export async function saveSession(sessionData, dbName = DB_NAME_PROD) {

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { openDB, _resetDB, seedContent, getAllContent, getContentByZone,
   getUserProgress, getAllUserProgress, upsertUserProgress, markSeen,
   getSRSQueues, getMapCoverageCount, saveSession, getRecentSessions,
-  getCurriculumData } from '../js/db.js';
+  getCurriculumData, applyQuizResult } from '../js/db.js';
 
 // Each describe block uses a unique DB name to prevent cross-test contamination.
 // Pass the name to openDB() so each test group gets its own IndexedDB database.
@@ -325,5 +325,95 @@ describe('getCurriculumData', () => {
     assert.ok(data.progressMap instanceof Map);
     assert.ok(data.progressMap.has('curr-c1'));
     assert.ok(data.progressMap.has('curr-c2'));
+  });
+});
+
+describe('applyQuizResult', () => {
+  const uid = () => `test-aqr-${Math.random().toString(36).slice(2)}`;
+  const base = (overrides = {}) => ({
+    id: 'aqr-c', seen: true, practiced: false,
+    next_review_date: null, last_review_date: null,
+    ease_factor: 2.5, interval: 1, repetitions: 0,
+    used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
+    ...overrides,
+  });
+
+  test('sets practiced=true on first answer', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base(), DB);
+    await applyQuizResult('aqr-c', true, 'definition', 0, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.equal(p.practiced, true);
+  });
+
+  test('appends question index to used_question_indices', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base(), DB);
+    await applyQuizResult('aqr-c', true, 'definition', 2, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.deepEqual(p.used_question_indices.definition, [2]);
+  });
+
+  test('does not duplicate index already present', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base({
+      used_question_indices: { definition: [2], usage: [], anatomy: [], build: [] },
+    }), DB);
+    await applyQuizResult('aqr-c', true, 'definition', 2, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.deepEqual(p.used_question_indices.definition, [2]);
+  });
+
+  test('correct answer rep=0: interval=1, advances next_review_date by 1 day', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base(), DB);
+    await applyQuizResult('aqr-c', true, 'definition', 0, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.equal(p.repetitions, 1);
+    assert.equal(p.interval, 1);
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    assert.equal(p.next_review_date, tomorrow);
+    assert.equal(p.last_review_date, new Date().toISOString().slice(0, 10));
+  });
+
+  test('correct answer rep=1: interval=6', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base({ repetitions: 1, interval: 1, practiced: true }), DB);
+    await applyQuizResult('aqr-c', true, 'definition', 1, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.equal(p.interval, 6);
+    assert.equal(p.repetitions, 2);
+  });
+
+  test('wrong answer resets repetitions and interval', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base({ repetitions: 3, interval: 12, practiced: true }), DB);
+    await applyQuizResult('aqr-c', false, 'definition', 0, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.equal(p.repetitions, 0);
+    assert.equal(p.interval, 1);
+    assert.ok(p.ease_factor < 2.5);
+  });
+
+  test('ease_factor never drops below 1.3', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base({ ease_factor: 1.3, practiced: true }), DB);
+    await applyQuizResult('aqr-c', false, 'definition', 0, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.ok(p.ease_factor >= 1.3);
+  });
+
+  test('no-op if concept has no progress record', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await applyQuizResult('does-not-exist', true, 'definition', 0, DB);
+    assert.equal(await getUserProgress('does-not-exist', DB), null);
   });
 });
