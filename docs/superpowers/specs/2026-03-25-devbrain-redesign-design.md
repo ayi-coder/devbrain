@@ -138,9 +138,10 @@ Back button shows parent subcategory. Content:
 - **"Example command" block** (monospace, green text) — only for command concepts
 - **"Example" block** — one example visible by default with a "Read more" toggle revealing two additional examples
 - **"Use it when" block** — practical trigger context
-- Two action buttons at bottom:
-  - **"Test yourself →"** — launches 3-question mini-drill for this concept (see §6.7)
-  - **"Add to Quiz session →"** — deep-links to Quiz tab with this concept pre-loaded (see §4.4)
+- One action button at bottom:
+  - **"Check my understanding →"** — opens the comprehension check sheet for this concept (see §3.5.3)
+  - After the user has completed the check at least once: button label changes to **"Check again →"**
+  - No link to the Quiz tab from this screen — the Quiz tab is entirely standalone
 
 #### 3.5.1 Hyperlinked terms
 
@@ -159,7 +160,48 @@ Back button shows parent subcategory. Content:
 
 - First time the lesson screen is opened for a concept → concept state is set to `seen`
 - `seen` state: concept appears in Quiz tab recommendations, concept dot glows dimly on globe
-- `practiced` state: set after at least one quiz answer recorded (any result, any mode)
+- `practiced` state: set after at least one correct quiz answer recorded in the Quiz tab (comprehension check does not set `practiced`)
+
+#### 3.5.3 Comprehension check
+
+A lightweight self-assessment that runs entirely within the lesson screen context. It is not a quiz, does not affect SRS scheduling, and has no connection to the Quiz tab.
+
+**Trigger:** "Check my understanding →" button at the bottom of the lesson screen. Label becomes "Check again →" after first completion (tracked via a `check_completed` boolean on the content record — not in user-progress).
+
+**Container:** Bottom sheet, reusing the existing `.overlay-backdrop` + `.overlay-sheet` pattern from hyperlinked term overlays. Sheet height ~85% of screen. Drag handle visible at top.
+
+**Abandonment:** If the user drags down or taps the backdrop mid-check, a confirmation dialog appears: *"Leave the check? Your progress won't be saved."* If confirmed, sheet dismisses. If cancelled, sheet stays open.
+
+**Question flow — one question at a time:**
+- Questions are drawn from the concept's `definition` question pool (T1 only — 3 questions)
+- Questions do NOT consume or update `used_question_indices` — the comprehension check has its own separate pool tracked in `check_used_indices` on the content record
+- One question visible at a time; no progress dots or question counter shown (intentionally low-stakes)
+- Question type: multiple choice only, matching the existing MC format
+
+**Answer feedback:**
+- **Correct:** Option turns green. Auto-advance to next question after 700ms. No "Correct!" text — the green state is sufficient signal.
+- **Wrong:** Wrong option turns red. Correct option turns green and **expands an explanation block beneath it** — an auto-revealed panel (not user-toggled) using `grid-template-rows: 0fr → 1fr` CSS transition. Explanation text is pulled from the question's `explanation` field. A **"Next →"** button appears below the options. No auto-advance on wrong — user controls when to move forward.
+- Wrong answer feedback language is informational, not punishing: *"Not quite — [explanation]"* framing within the explanation text itself.
+- Once an option is selected (correct or wrong), all options become non-interactive.
+
+**End state — simultaneous review:**
+After all 3 questions are answered, the sheet transitions to a review view showing all 3 questions at once in a scrollable list:
+- Each question shows its prompt (truncated to 2 lines if long)
+- Correct answer always shown with a ✓ and green color
+- If the user answered wrong: their chosen option also shown with ✗ and red color
+- No score number shown anywhere — no "2 / 3" or "67%"
+- Completion message: **"Done — all 3 checked"**
+- Single button: **"Back to lesson"** — dismisses sheet, returns to lesson screen
+
+**Data impact:**
+- Comprehension check answers do NOT call `applyQuizResult`
+- They do NOT update `next_review_date`, `ease_factor`, `interval`, or `repetitions`
+- They do NOT set `practiced`
+- They do NOT update `used_question_indices`
+- `check_completed` boolean is set to `true` after the first full completion (stored on the user-progress record alongside other fields)
+
+**Question data requirement:**
+Each definition question must include an `explanation` field (string) alongside `prompt`, `options`, and `correct_index`. This field is displayed in the wrong-answer expansion panel.
 
 ### 3.6 "Map ↗" deep-link behavior
 
@@ -273,6 +315,12 @@ Positions are defined once and never auto-generated at runtime.
 
 The Quiz tab is the only place full multi-concept quiz sessions start. It shows SRS recommendations and lets the user build a custom session of 1–5 concepts.
 
+**The Quiz tab is fully standalone.** No other tab links into it except the single "Go to Quiz →" button on the Home tab hero card. The Curriculum lesson screen has no link to the Quiz tab — its comprehension check (§3.5.3) is a self-contained flow that does not interact with the Quiz system.
+
+**Tab isolation rules:**
+- Tapping a different tab while a quiz session is active shows a confirmation: *"Leave quiz? Your progress will be lost."* If confirmed, session is abandoned. If cancelled, user stays on the Quiz tab.
+- This confirmation is handled at the router level via a `quizActive` flag. `quizActive` is set to `true` when `_startSession()` runs and set to `false` when the session ends (results screen reached, exit confirmed, or "Done" tapped on results). The back-arrow exit button inside the quiz active view does NOT show a separate confirmation — the router gate is the single confirmation point.
+
 ### 5.2 Session builder
 
 - Card at top of screen: "Your session" with 0/5 count
@@ -322,9 +370,11 @@ The Quiz tab is the only place full multi-concept quiz sessions start. It shows 
 - Back arrow (`←`) exits session with confirmation if questions remain
 - After quiz completes: results screen showing score per concept, then returns to Quiz tab
 
-### 5.8 Pre-loading a concept from other tabs
+### 5.8 Pre-loading a concept from the Home tab
 
 Deep-link format: `#quiz?preload=<concept-id>`
+
+The only cross-tab preload entry point is the Home tab hero card "Go to Quiz →" button, which navigates to `#quiz` (no preload param — it opens the session builder). The preload param mechanism remains available for internal use if needed, but no tab other than Home links to Quiz, and the Curriculum lesson screen has no preload link.
 
 When the Quiz tab mounts and `preload` param is present:
 - Concept is added to session builder automatically
@@ -348,8 +398,11 @@ When the Quiz tab mounts and `preload` param is present:
 ### 6.2 Tier unlock rules
 
 - Tier 1 unlocks immediately (all concepts)
-- Tier 2 unlocks after Tier 1 answered correctly at least once
-- Tier 3 unlocks after Tier 2 answered correctly at least once
+- Tier 2 unlocks after Tier 1 answered **correctly** at least once — tracked via `t2_unlocked` boolean on the user-progress record. A wrong answer on T1 does NOT unlock T2.
+- Tier 3 unlocks after Tier 2 answered **correctly** at least once — tracked via `t3_unlocked` boolean. A wrong answer on T2 does NOT unlock T3.
+- `t2_unlocked` is set to `true` by `applyQuizResult` when `isCorrect=true` and `qType='definition'`
+- `t3_unlocked` is set to `true` by `applyQuizResult` when `isCorrect=true` and `qType='usage'`
+- Comprehension check answers (§3.5.3) never set `t2_unlocked` or `t3_unlocked`
 - Within a quiz session, questions draw from all unlocked tiers for each concept
 
 ### 6.3 Session rules (Quiz tab full session)
@@ -362,17 +415,18 @@ When the Quiz tab mounts and `preload` param is present:
 - After all 8 questions for a type have been used, cycle restarts
 - Max 5 concepts per session; max total questions = 15 (5 concepts × 3 questions)
 
-### 6.4 Mini-drill rules (Curriculum lesson screen)
+### 6.4 Comprehension check rules (Curriculum lesson screen)
 
-- Exactly 3 questions for the single concept
-- Draws from all already-unlocked tiers for that concept
-- Uses the same `used_question_indices` pool as full sessions — no duplication
-- On completion: persist `used_question_indices` to IndexedDB immediately, then return user to lesson screen
-- Result feeds back into SRS scoring normally
+The comprehension check (§3.5.3) is entirely separate from the Quiz system. See §3.5.3 for the full specification. Key separations:
+- Does not call `applyQuizResult`
+- Does not update `used_question_indices`, `next_review_date`, `ease_factor`, `interval`, or `repetitions`
+- Does not set `practiced`, `t2_unlocked`, or `t3_unlocked`
+- Uses its own `check_used_indices` pool (definition questions only, T1)
+- Sets `check_completed = true` on first full completion
 
-### 6.5 Shared question pool
+### 6.5 Question pool separation
 
-Both the full session (Quiz tab) and mini-drill (Curriculum) read from and write to the same `used_question_indices` per concept per type. Session type is irrelevant — only usage history matters.
+The Quiz tab's full session reads from and writes to `used_question_indices` per concept per type. The comprehension check reads from and writes to `check_used_indices` (definition only). These two pools are completely independent — doing the comprehension check does not consume Quiz tab question indices and vice versa.
 
 ### 6.6 Concept discovery states
 
@@ -454,7 +508,11 @@ Content and user state are stored in **separate IndexedDB object stores** to sup
   - Curriculum fields: `id`, `name`, `zone`, `subcategory`, `tier_unlocked`, `is_bridge`, `bridge_zones`, `what_it_is`, `analogy`, `examples[]`, `example_command`, `use_when`, `questions{}`
 
 - **`user-progress`** store — mutable user state, keyed by concept `id`:
-  - Progress fields: `id`, `seen`, `practiced`, `next_review_date`, `last_review_date`, `ease_factor`, `interval`, `repetitions`, `used_question_indices{}`
+  - Progress fields: `id`, `seen`, `practiced`, `t2_unlocked`, `t3_unlocked`, `check_completed`, `next_review_date`, `last_review_date`, `ease_factor`, `interval`, `repetitions`, `used_question_indices{}`, `check_used_indices{}`
+  - `t2_unlocked`: boolean — set `true` when a definition question is answered correctly in the Quiz tab
+  - `t3_unlocked`: boolean — set `true` when a usage question is answered correctly in the Quiz tab
+  - `check_completed`: boolean — set `true` after the comprehension check is completed at least once
+  - `check_used_indices`: `{ definition: [] }` — tracks which definition question indices have been used in the comprehension check (separate from `used_question_indices`)
 
 On first install: `user-progress` records are created with all fields at default values for every concept in `concepts-content`. On curriculum content updates: new content is written to `concepts-content` without touching `user-progress`. Migration script handles structural schema changes.
 
@@ -492,6 +550,9 @@ On first install: `user-progress` records are created with all fields at default
   "id": "bash-mkdir",
   "seen": false,
   "practiced": false,
+  "t2_unlocked": false,
+  "t3_unlocked": false,
+  "check_completed": false,
   "next_review_date": null,
   "last_review_date": null,
   "ease_factor": 2.5,
@@ -502,6 +563,9 @@ On first install: `user-progress` records are created with all fields at default
     "usage": [],
     "anatomy": [],
     "build": []
+  },
+  "check_used_indices": {
+    "definition": []
   }
 }
 ```
@@ -573,7 +637,49 @@ Target: ~120 concepts across all zones (~14–18 per zone). Bridge nodes (~5–8
 
 ---
 
-## 10. Preserved from Existing App
+## 10. Content Update Strategy
+
+### 10.1 Incremental seeding
+
+`curriculum-loader.js` must handle returning users who already have progress records, without overwriting them. The strategy:
+
+- On every app load, fetch `curriculum.json` and attempt `add()` (not `put()`) for each concept in `concepts-content`. Because `add()` throws `ConstraintError` when a key already exists, it naturally skips concepts already in the store and only writes genuinely new ones.
+- For `user-progress`, loop over fetched concepts and upsert only records whose `id` is not already present — same as today, but without the early-return guard.
+- Remove the `if (existingProgress.length > 0) return` guard entirely. The add-only strategy makes the loader safe to run on every load.
+
+### 10.2 Version stamp (upgrade path)
+
+When the content file grows large enough that a per-load full-diff feels wasteful, add a `"version": N` integer field to `curriculum.json` and a `meta` IDB object store. On load, compare the stored version to the bundled one. Only run the incremental diff when they differ. Bump the version number whenever new concepts are added. This requires bumping `DB_VERSION` to 3 to add the `meta` store.
+
+### 10.3 Question data requirement
+
+Every definition question must include an `explanation` field (string) for use in the comprehension check wrong-answer expansion panel. This field is required alongside `prompt`, `options`, and `correct_index`:
+
+```json
+{
+  "prompt": "What does mkdir do?",
+  "options": ["Creates a file", "Creates a directory", "Moves a file", "Lists files"],
+  "correct_index": 1,
+  "explanation": "mkdir stands for 'make directory' — it creates a new folder at the path you specify. It doesn't touch files, move anything, or list contents."
+}
+```
+
+Usage and anatomy/build questions do not require `explanation` fields (comprehension check uses definition questions only).
+
+---
+
+## 11. Router — Quiz Active Guard
+
+`router.js` exposes `setQuizActive(val)` and a `quizActive` flag that blocks tab switches when a quiz session is running. The Quiz tab must wire this up correctly:
+
+- Call `setQuizActive(true)` when `_startSession()` begins
+- Call `setQuizActive(false)` when the session ends: on results screen reached, on exit confirmed via router dialog, and on "Done" tapped from results screen
+
+The back-arrow (`←`) inside the active quiz view calls `_handleExit()`. **`_handleExit()` must not show its own `confirm()` dialog** — the router gate is the single confirmation point. `_handleExit()` should only reset state and call `_renderBuilder()` directly.
+
+---
+
+## 12. Preserved from Existing App (now updated)
 
 - **SRS engine** (SM-2-style scheduling, intervals, ease factors) — unchanged
 - **IndexedDB schema** — extended with `seen`, `practiced`, `examples[]`, `analogy`, `what_it_is`, and restructured `used_question_indices` object; migration script required for existing data
@@ -583,7 +689,7 @@ Target: ~120 concepts across all zones (~14–18 per zone). Bridge nodes (~5–8
 
 ---
 
-## 11. Out of Scope
+## 13. Out of Scope
 
 - Accounts / cloud sync (local storage only)
 - Social / sharing features
