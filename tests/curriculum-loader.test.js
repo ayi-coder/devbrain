@@ -111,8 +111,11 @@ describe('curriculum-loader', () => {
 
     // Second load: conceptA + conceptB
     fetchOverride = async () => ({ ok: true, json: async () => [conceptA, conceptB] });
-    await loadCurriculum(DB);
-    fetchOverride = null;
+    try {
+      await loadCurriculum(DB);
+    } finally {
+      fetchOverride = null;
+    }
 
     // conceptB should now exist in content
     const content = await getAllContent(DB);

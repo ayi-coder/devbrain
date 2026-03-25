@@ -123,11 +123,11 @@ export async function getContentByZone(zoneId, dbName = DB_NAME_PROD) {
 }
 
 export async function addContentIfNew(concepts, dbName = DB_NAME_PROD) {
-  if (concepts.length === 0) return;
+  if (!concepts || concepts.length === 0) return;
   const db = getDB(dbName);
-  // Read existing keys first, then add only concepts not already present.
-  // This avoids ConstraintError entirely, making the function safe to call on
-  // every app load without touching records that already exist.
+  // Reads existing keys then adds only new ones (single-tab safe — concurrent writes
+  // between transactions are not guarded). This avoids ConstraintError when called
+  // multiple times from the same tab without touching records that already exist.
   const existingIds = await new Promise((resolve, reject) => {
     const tx = db.transaction('concepts-content', 'readonly');
     tx.objectStore('concepts-content').getAllKeys().onsuccess = (e) => resolve(new Set(e.target.result));
