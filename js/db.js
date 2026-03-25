@@ -75,6 +75,10 @@ function _migrateProgressRecord(old) {
     interval: old.interval ?? 1,
     repetitions: old.repetitions ?? 0,
     used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
+    t2_unlocked: false,
+    t3_unlocked: false,
+    check_completed: false,
+    check_used_indices: { definition: [] },
   };
 }
 

@@ -526,11 +526,17 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
       '<button class="check-review__back">Back to lesson</button>';
 
     sheet.querySelector('.check-review__back').addEventListener('click', async () => {
-      await saveCheckCompletion(concept.id, usedIndices, dbName);
-      const refreshed = await getUserProgress(concept.id, dbName);
-      if (refreshed) data.progressMap.set(concept.id, refreshed);
-      close();
-      await _renderLesson(container, data, _navStack[_navStack.length - 1], dbName);
+      try {
+        await saveCheckCompletion(concept.id, usedIndices, dbName);
+        const refreshed = await getUserProgress(concept.id, dbName);
+        if (refreshed) data.progressMap.set(concept.id, refreshed);
+        close();
+        if (_navStack[_navStack.length - 1] === undefined) return;
+        await _renderLesson(container, data, _navStack[_navStack.length - 1], dbName);
+      } catch (err) {
+        close();
+        container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+      }
     });
   }
 
