@@ -191,6 +191,18 @@ export async function markSeen(id, dbName = DB_NAME_PROD) {
   await upsertUserProgress({ ...existing, seen: true }, dbName);
 }
 
+export async function saveCheckCompletion(conceptId, usedIndices, dbName = DB_NAME_PROD) {
+  const existing = await getUserProgress(conceptId, dbName);
+  if (!existing) return;
+  const currentUsed = existing.check_used_indices?.definition ?? [];
+  const merged = [...new Set([...currentUsed, ...usedIndices])];
+  await upsertUserProgress({
+    ...existing,
+    check_completed: true,
+    check_used_indices: { definition: merged },
+  }, dbName);
+}
+
 export async function markPracticed(id, dbName = DB_NAME_PROD) {
   const existing = await getUserProgress(id, dbName);
   if (!existing || existing.practiced) return;

@@ -1,4 +1,4 @@
-import { getCurriculumData, markSeen, getUserProgress } from '../js/db.js';
+import { getCurriculumData, markSeen, getUserProgress, saveCheckCompletion } from '../js/db.js';
 import { zoneColor, ZONE_NAMES, subcatName } from '../js/zones.js';
 import { navigate } from '../js/router.js';
 
@@ -54,6 +54,19 @@ export function conceptStatus(progress, today) {
   if (!progress.practiced) return 'new';
   if (!progress.next_review_date || progress.next_review_date <= today) return 'due';
   return 'done';
+}
+
+/**
+ * Selects up to 3 definition questions using LRU logic.
+ * Prefers unused indices; cycles from full pool when all are used.
+ * Exported for testing.
+ */
+export function _selectCheckQuestions(concept, progress) {
+  const defs = concept.questions?.definition ?? [];
+  const usedIndices = progress?.check_used_indices?.definition ?? [];
+  const unused = defs.map((_, i) => i).filter((i) => !usedIndices.includes(i));
+  const pool = unused.length >= 3 ? unused : defs.map((_, i) => i);
+  return pool.slice(0, 3).map((i) => ({ index: i, question: defs[i] }));
 }
 
 // ── Entry point ────────────────────────────────────────────────────────
@@ -159,7 +172,7 @@ function _renderZones(container, data, dbName) {
   });
 }
 
-// ── Level 3: concept list (stub — filled in Task 4) ────────────────────
+// ── Level 3: concept list ────────────────────────────────────────────
 
 function _renderConceptList(container, data, { zoneId, subcatId }, dbName) {
   const today = new Date().toISOString().slice(0, 10);
@@ -336,11 +349,8 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
         '<div class="lesson-section__text">' + _esc(concept.use_when) + '</div>' +
       '</div>' +
       '<div class="lesson-actions">' +
-        '<button class="lesson-actions__btn lesson-actions__btn--secondary" id="btn-test-self">' +
-          'Test yourself \u2192' +
-        '</button>' +
-        '<button class="lesson-actions__btn lesson-actions__btn--primary" id="btn-add-quiz">' +
-          'Add to Quiz \u2192' +
+        '<button class="lesson-actions__btn lesson-actions__btn--primary" id="btn-check">' +
+          (updatedProgress?.check_completed ? 'Check again \u2192' : 'Check my understanding \u2192') +
         '</button>' +
       '</div>' +
     '</div>';
@@ -350,14 +360,6 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
     _render(container, data, dbName).catch((err) => {
       container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
     });
-  });
-
-  container.querySelector('#btn-test-self').addEventListener('click', () => {
-    navigate('quiz', { preload: conceptId });
-  });
-
-  container.querySelector('#btn-add-quiz').addEventListener('click', () => {
-    navigate('quiz', { preload: conceptId });
   });
 
   const readMoreBtn = container.querySelector('.lesson__read-more');
@@ -374,12 +376,166 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
     });
   }
 
-  // Concept hyperlinks → bottom sheet overlay (browser only; document.body unavailable in Node.js tests)
+  // Concept hyperlinks + comprehension check — browser only (document.body unavailable in Node.js tests)
   if (typeof document !== 'undefined' && document.body) {
     container.querySelectorAll('.concept-link').forEach((link) => {
       link.addEventListener('click', () => {
         _showLinkedConcept(container, data, link.dataset.conceptId, concept.name);
       });
     });
+
+    container.querySelector('#btn-check').addEventListener('click', () => {
+      _showComprehensionCheck(container, data, concept, updatedProgress, dbName);
+    });
   }
+}
+
+// ── Comprehension check bottom sheet ──────────────────────────────────
+
+function _showComprehensionCheck(container, data, concept, progress, dbName) {
+  const questions = _selectCheckQuestions(concept, progress);
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'overlay-backdrop';
+  const sheet = document.createElement('div');
+  sheet.className = 'overlay-sheet';
+  sheet.style.maxHeight = '85vh';
+
+  const close = () => { backdrop.remove(); sheet.remove(); };
+
+  if (questions.length === 0) {
+    sheet.innerHTML =
+      '<div class="overlay-sheet__handle"></div>' +
+      '<div style="padding:24px 16px;color:#abb2bf;font-size:15px;">No questions available for this concept yet.</div>';
+    backdrop.addEventListener('click', close);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(sheet);
+    return;
+  }
+
+  let qIndex = 0;
+  const answers = [];
+  let answered = false;
+
+  backdrop.addEventListener('click', () => {
+    if (answers.length === 0) {
+      close();
+      return;
+    }
+    if (confirm('Leave the check? Your progress won\'t be saved.')) {
+      close();
+    }
+  });
+
+  function renderQuestion() {
+    answered = false;
+    const { index: qIdx, question: q } = questions[qIndex];
+    const optionsHtml = q.options.map((opt, i) =>
+      '<button class="check-option" data-index="' + i + '">' + _esc(opt) + '</button>',
+    ).join('');
+
+    const explanationHtml = q.explanation
+      ? '<div class="check-explanation" id="check-exp">' +
+          '<div class="check-explanation__inner">' +
+            '<div class="check-explanation__text">' + _esc(q.explanation) + '</div>' +
+          '</div>' +
+        '</div>'
+      : '';
+
+    sheet.innerHTML =
+      '<div class="overlay-sheet__handle"></div>' +
+      '<div class="check-question">' +
+        '<div class="check-question__prompt">' + _esc(q.prompt) + '</div>' +
+        '<div class="check-options">' + optionsHtml + '</div>' +
+        explanationHtml +
+      '</div>';
+
+    sheet.querySelectorAll('.check-option').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (answered) return;
+        answered = true;
+
+        const selectedIndex = parseInt(btn.dataset.index, 10);
+        const correct = selectedIndex === q.correct_index;
+
+        // Mark selected option
+        btn.classList.add(correct ? 'check-option--correct' : 'check-option--wrong');
+
+        // Always mark the correct answer green and disable all options
+        sheet.querySelectorAll('.check-option').forEach((b) => {
+          if (parseInt(b.dataset.index, 10) === q.correct_index) {
+            b.classList.add('check-option--correct');
+          }
+          b.disabled = true;
+        });
+
+        // Show explanation + Next button on wrong answer
+        if (!correct) {
+          const expEl = sheet.querySelector('#check-exp');
+          if (expEl) expEl.classList.add('check-explanation--open');
+
+          const nextBtn = document.createElement('button');
+          nextBtn.className = 'check-next';
+          nextBtn.textContent = 'Next \u2192';
+          nextBtn.addEventListener('click', advance);
+          sheet.querySelector('.check-question').appendChild(nextBtn);
+        }
+
+        answers.push({ questionIndex: qIdx, selectedIndex, correct });
+
+        if (correct) {
+          setTimeout(advance, 700);
+        }
+      });
+    });
+  }
+
+  function advance() {
+    qIndex++;
+    if (qIndex >= questions.length) {
+      renderReview();
+    } else {
+      renderQuestion();
+    }
+  }
+
+  function renderReview() {
+    const usedIndices = questions.map((q) => q.index);
+
+    const reviewItems = questions.map((q) => {
+      const answer = answers.find((a) => a.questionIndex === q.index);
+      const correctText = _esc(q.question.options[q.question.correct_index]);
+      let wrongHtml = '';
+      if (answer && !answer.correct) {
+        wrongHtml =
+          '<div class="check-review__answer check-review__answer--wrong">\u2717 ' +
+          _esc(q.question.options[answer.selectedIndex]) + '</div>';
+      }
+      return (
+        '<div class="check-review__item">' +
+          '<div class="check-review__prompt">' + _esc(q.question.prompt) + '</div>' +
+          '<div class="check-review__answer check-review__answer--correct">\u2713 ' + correctText + '</div>' +
+          wrongHtml +
+        '</div>'
+      );
+    }).join('');
+
+    sheet.innerHTML =
+      '<div class="overlay-sheet__handle"></div>' +
+      '<div class="check-review__message">Done \u2014 all ' + questions.length + ' checked</div>' +
+      reviewItems +
+      '<button class="check-review__back">Back to lesson</button>';
+
+    sheet.querySelector('.check-review__back').addEventListener('click', async () => {
+      await saveCheckCompletion(concept.id, usedIndices, dbName);
+      const refreshed = await getUserProgress(concept.id, dbName);
+      if (refreshed) data.progressMap.set(concept.id, refreshed);
+      close();
+      await _renderLesson(container, data, _navStack[_navStack.length - 1], dbName);
+    });
+  }
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+  renderQuestion();
 }

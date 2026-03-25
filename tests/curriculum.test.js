@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDB, _resetDB, seedContent, upsertUserProgress, getUserProgress } from '../js/db.js';
-import { parseLinks, conceptStatus, renderCurriculum, _resetCurriculumState } from '../views/curriculum.js';
+import { parseLinks, conceptStatus, renderCurriculum, _resetCurriculumState, _selectCheckQuestions } from '../views/curriculum.js';
 
 // Stub location so navigate() calls don't throw in Node.js
 globalThis.location = { hash: '' };
@@ -218,5 +218,80 @@ describe('renderCurriculum', () => {
 
     // c1 is in zone 'shell-terminal' whose color is #e5c07b
     assert.ok(container.innerHTML.includes('#e5c07b'), 'link colored with zone color');
+  });
+});
+
+// ── _selectCheckQuestions ─────────────────────────────────────────────
+
+const conceptWithQuestions = {
+  ...sampleConcept,
+  questions: {
+    definition: [
+      { prompt: 'Q0', options: ['a', 'b', 'c', 'd'], correct_index: 0 },
+      { prompt: 'Q1', options: ['a', 'b', 'c', 'd'], correct_index: 1 },
+      { prompt: 'Q2', options: ['a', 'b', 'c', 'd'], correct_index: 2 },
+      { prompt: 'Q3', options: ['a', 'b', 'c', 'd'], correct_index: 3 },
+    ],
+    usage: [], anatomy: [], build: [],
+  },
+};
+
+describe('_selectCheckQuestions', () => {
+  it('returns up to 3 definition questions', () => {
+    const result = _selectCheckQuestions(conceptWithQuestions, null);
+    assert.equal(result.length, 3);
+    result.forEach((item) => {
+      assert.ok('index' in item);
+      assert.ok('question' in item);
+    });
+  });
+
+  it('prefers unused indices', () => {
+    // 4 questions total, 1 used → unused = [1,2,3] which has >= 3, so pool = unused
+    const progress = { check_used_indices: { definition: [0] } };
+    const result = _selectCheckQuestions(conceptWithQuestions, progress);
+    const indices = result.map((r) => r.index);
+    // Should not include used index 0
+    assert.ok(!indices.includes(0), 'should not include used index 0');
+    assert.ok(indices.includes(1), 'should include index 1 (unused)');
+    assert.ok(indices.includes(2), 'should include index 2 (unused)');
+    assert.ok(indices.includes(3), 'should include index 3 (unused)');
+  });
+
+  it('cycles from full pool when all used', () => {
+    const progress = { check_used_indices: { definition: [0, 1, 2, 3] } };
+    const result = _selectCheckQuestions(conceptWithQuestions, progress);
+    assert.equal(result.length, 3);
+    // falls back to full pool [0,1,2,3], takes first 3
+    const indices = result.map((r) => r.index);
+    assert.deepEqual(indices, [0, 1, 2]);
+  });
+});
+
+// ── btn-check label ───────────────────────────────────────────────────
+
+describe('renderCurriculum (btn-check label)', () => {
+  beforeEach(() => { _resetDB(); _resetCurriculumState(); });
+
+  it('renders Check my understanding button when check_completed is false', async () => {
+    const dbName = mkName();
+    await openDB(dbName);
+    await seedContent([sampleConcept], dbName);
+    await upsertUserProgress({ ...defaultProg, id: 'c1', seen: true, check_completed: false }, dbName);
+
+    _resetCurriculumState({
+      navStack: [{
+        type: 'lesson', conceptId: 'c1',
+        zoneId: 'shell-terminal', subcatId: 'bash-commands',
+      }],
+    });
+
+    const container = makeMockContainer();
+    await renderCurriculum(container, {}, dbName);
+
+    assert.ok(
+      container.innerHTML.includes('Check my understanding'),
+      'button label should be "Check my understanding" when check_completed is false',
+    );
   });
 });
