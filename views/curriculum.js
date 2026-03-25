@@ -1,4 +1,4 @@
-import { getCurriculumData, markSeen, getUserProgress } from '../js/db.js';
+import { getCurriculumData } from '../js/db.js';
 import { zoneColor, ZONE_NAMES, subcatName } from '../js/zones.js';
 import { navigate } from '../js/router.js';
 
@@ -75,7 +75,7 @@ function _renderZones(container, data, dbName) {
   let html =
     '<div class="curriculum-header">' +
       '<div class="curriculum-header__title">Curriculum</div>' +
-      '<div class="curriculum-header__subtitle">8 zones \u00b7 ' + total + ' concepts total</div>' +
+      '<div class="curriculum-header__subtitle">' + data.zones.length + ' zones \u00b7 ' + total + ' concepts total</div>' +
     '</div>';
 
   for (const zone of data.zones) {
