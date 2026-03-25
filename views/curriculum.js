@@ -204,6 +204,68 @@ function _renderConceptList(container, data, { zoneId, subcatId }, dbName) {
   });
 }
 
+// ── Linked text renderer ───────────────────────────────────────────────
+
+/**
+ * Renders text with [term](concept-id) links as colored <span> elements.
+ * isOverlay=true: spans are colored but not clickable (overlay depth cap — spec §3.5.1).
+ * Unknown concept IDs fall back to plain text.
+ */
+function renderLinkedText(text, contentMap, progressMap, isOverlay) {
+  const segments = parseLinks(text);
+  return segments.map((seg) => {
+    if (typeof seg === 'string') return seg;
+    const linked = contentMap.get(seg.conceptId);
+    if (!linked) return seg.text;
+    const color = zoneColor(linked.zone);
+    if (isOverlay) {
+      return '<span class="concept-link" style="color:' + color + '">' + seg.text + '</span>';
+    }
+    return '<span class="concept-link" data-concept-id="' + seg.conceptId + '"' +
+      ' style="color:' + color + '">' + seg.text + '</span>';
+  }).join('');
+}
+
+/**
+ * Opens a bottom sheet overlay for a linked concept.
+ * Shows full what_it_is (with non-clickable links) or a locked message.
+ * Only called in browser context — guarded in _renderLesson.
+ */
+function _showLinkedConcept(container, data, conceptId, backToName) {
+  const concept = data.contentMap.get(conceptId);
+  if (!concept) return;
+
+  const progress = data.progressMap.get(conceptId);
+  const isLocked = !progress || !progress.seen;
+  const color = zoneColor(concept.zone);
+  const zoneName = ZONE_NAMES[concept.zone] ?? concept.zone;
+
+  const bodyHTML = isLocked
+    ? '<p class="overlay-sheet__locked">Explore more of this zone to unlock</p>'
+    : '<div class="overlay-sheet__text">' +
+        renderLinkedText(concept.what_it_is, data.contentMap, data.progressMap, true) +
+      '</div>';
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'overlay-backdrop';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'overlay-sheet';
+  sheet.innerHTML =
+    '<div class="overlay-sheet__handle"></div>' +
+    '<button class="overlay-sheet__back">\u2190 Back to ' + backToName + '</button>' +
+    '<div class="overlay-sheet__name">' + concept.name + '</div>' +
+    '<span class="overlay-sheet__zone-tag" style="background:' + color + '">' + zoneName + '</span>' +
+    bodyHTML;
+
+  const close = () => { backdrop.remove(); sheet.remove(); };
+  backdrop.addEventListener('click', close);
+  sheet.querySelector('.overlay-sheet__back').addEventListener('click', close);
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+}
+
 // ── Level 4: lesson screen ─────────────────────────────────────────────
 
 async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, dbName) {
@@ -250,7 +312,9 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
       '<span class="lesson__zone-tag" style="background:' + color + '">' + zoneName + '</span>' +
       '<div class="lesson-section">' +
         '<div class="lesson-section__label">What it is</div>' +
-        '<div class="lesson-section__text" id="lesson-what-it-is">' + concept.what_it_is + '</div>' +
+        '<div class="lesson-section__text" id="lesson-what-it-is">' +
+          renderLinkedText(concept.what_it_is, data.contentMap, data.progressMap, false) +
+        '</div>' +
       '</div>' +
       commandBlock +
       '<div class="lesson-section">' +
@@ -298,6 +362,15 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
         hiddenSection.style.display = 'none';
         readMoreBtn.textContent = 'Read more \u25be';
       }
+    });
+  }
+
+  // Concept hyperlinks → bottom sheet overlay (browser only; document.body unavailable in Node.js tests)
+  if (typeof document !== 'undefined' && document.body) {
+    container.querySelectorAll('.concept-link').forEach((link) => {
+      link.addEventListener('click', () => {
+        _showLinkedConcept(container, data, link.dataset.conceptId, concept.name);
+      });
     });
   }
 }

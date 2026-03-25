@@ -31,6 +31,15 @@ const sampleConcept = {
   questions: { definition: [], usage: [], anatomy: [], build: [] },
 };
 
+const sampleLinkedConcept = {
+  id: 'c2', name: 'ls', zone: 'shell-terminal', subcategory: 'bash-commands',
+  is_bridge: false, tier_unlocked: 1, bridge_zones: [],
+  what_it_is: 'Lists files. See also [mkdir](c1) for creating directories.',
+  analogy: '', use_when: '',
+  examples: [{ text: 'eg', visible: true }], example_command: 'ls',
+  questions: { definition: [], usage: [], anatomy: [], build: [] },
+};
+
 const defaultProg = {
   seen: false, practiced: false, next_review_date: null, last_review_date: null,
   ease_factor: 2.5, interval: 1, repetitions: 0,
@@ -167,5 +176,47 @@ describe('renderCurriculum', () => {
 
     const updated = await getUserProgress('c1', dbName);
     assert.equal(updated.seen, true, 'seen should be true after lesson render');
+  });
+
+  it('renders concept-link span for linked term in what_it_is', async () => {
+    const dbName = mkName();
+    await openDB(dbName);
+    await seedContent([sampleConcept, sampleLinkedConcept], dbName);
+    await upsertUserProgress({ ...defaultProg, id: 'c1' }, dbName);
+    await upsertUserProgress({ ...defaultProg, id: 'c2' }, dbName);
+
+    _resetCurriculumState({
+      navStack: [{
+        type: 'lesson', conceptId: 'c2',
+        zoneId: 'shell-terminal', subcatId: 'bash-commands',
+      }],
+    });
+
+    const container = makeMockContainer();
+    await renderCurriculum(container, {}, dbName);
+
+    assert.ok(container.innerHTML.includes('concept-link'), 'concept-link span rendered');
+    assert.ok(container.innerHTML.includes('data-concept-id="c1"'), 'correct conceptId on span');
+  });
+
+  it('colors linked term with zone color of the linked concept', async () => {
+    const dbName = mkName();
+    await openDB(dbName);
+    await seedContent([sampleConcept, sampleLinkedConcept], dbName);
+    await upsertUserProgress({ ...defaultProg, id: 'c1' }, dbName);
+    await upsertUserProgress({ ...defaultProg, id: 'c2' }, dbName);
+
+    _resetCurriculumState({
+      navStack: [{
+        type: 'lesson', conceptId: 'c2',
+        zoneId: 'shell-terminal', subcatId: 'bash-commands',
+      }],
+    });
+
+    const container = makeMockContainer();
+    await renderCurriculum(container, {}, dbName);
+
+    // c1 is in zone 'shell-terminal' whose color is #e5c07b
+    assert.ok(container.innerHTML.includes('#e5c07b'), 'link colored with zone color');
   });
 });
