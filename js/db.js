@@ -298,6 +298,10 @@ export async function getCurriculumData(dbName = DB_NAME_PROD) {
  * Records a quiz answer: marks practiced, updates SM-2 scheduling fields,
  * and appends qIndex to used_question_indices[qType].
  *
+ * Also sets t2_unlocked=true on first correct definition answer, t3_unlocked=true
+ * on first correct usage answer. Preserves check_completed / check_used_indices
+ * via ?? fallback for records that pre-date those fields.
+ *
  * qType: 'definition' | 'usage' | 'anatomy' | 'build'
  * qIndex: 0-based index into concept.questions[qType]
  */
