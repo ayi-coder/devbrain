@@ -3,12 +3,16 @@ import { getAllContent, seedContent, getAllUserProgress, upsertUserProgress } fr
 const DEFAULT_PROGRESS = {
   seen: false,
   practiced: false,
+  t2_unlocked: false,
+  t3_unlocked: false,
+  check_completed: false,
   next_review_date: null,
   last_review_date: null,
   ease_factor: 2.5,
   interval: 1,
   repetitions: 0,
   used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
+  check_used_indices: { definition: [] },
 };
 
 export async function loadCurriculum(dbName = 'devbrain') {

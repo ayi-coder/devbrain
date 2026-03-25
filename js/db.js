@@ -328,6 +328,10 @@ export async function applyQuizResult(conceptId, isCorrect, qType, qIndex, dbNam
   await upsertUserProgress({
     ...existing,
     practiced: true,
+    t2_unlocked: (existing.t2_unlocked ?? false) || (isCorrect && qType === 'definition'),
+    t3_unlocked: (existing.t3_unlocked ?? false) || (isCorrect && qType === 'usage'),
+    check_completed: existing.check_completed ?? false,
+    check_used_indices: existing.check_used_indices ?? { definition: [] },
     ease_factor,
     interval,
     repetitions,

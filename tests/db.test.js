@@ -332,9 +332,12 @@ describe('applyQuizResult', () => {
   const uid = () => `test-aqr-${Math.random().toString(36).slice(2)}`;
   const base = (overrides = {}) => ({
     id: 'aqr-c', seen: true, practiced: false,
+    t2_unlocked: false, t3_unlocked: false,
+    check_completed: false,
     next_review_date: null, last_review_date: null,
     ease_factor: 2.5, interval: 1, repetitions: 0,
     used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
+    check_used_indices: { definition: [] },
     ...overrides,
   });
 
@@ -425,5 +428,25 @@ describe('applyQuizResult', () => {
     await openDB(DB);
     await applyQuizResult('does-not-exist', true, 'definition', 0, DB);
     assert.equal(await getUserProgress('does-not-exist', DB), null);
+  });
+
+  test('sets t2_unlocked on correct definition answer', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base(), DB);
+    await applyQuizResult('aqr-c', true, 'definition', 0, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.equal(p.t2_unlocked, true);
+    assert.equal(p.t3_unlocked, false);
+  });
+
+  test('sets t3_unlocked on correct usage answer', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base(), DB);
+    await applyQuizResult('aqr-c', true, 'usage', 0, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.equal(p.t3_unlocked, true);
+    assert.equal(p.t2_unlocked, false);
   });
 });
