@@ -208,14 +208,18 @@ async function _renderBuilder(container, dbName) {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       _session = _session.filter(s => s !== btn.dataset.remove);
-      _renderBuilder(container, dbName);
+      _renderBuilder(container, dbName).catch((err) => {
+        container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+      });
     });
   });
   container.querySelectorAll('[data-rec-add]').forEach(btn => {
     btn.addEventListener('click', () => {
       if (!_session.includes(btn.dataset.recAdd) && _session.length < 5) {
         _session.push(btn.dataset.recAdd);
-        _renderBuilder(container, dbName);
+        _renderBuilder(container, dbName).catch((err) => {
+          container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+        });
       }
     });
   });
@@ -223,7 +227,9 @@ async function _renderBuilder(container, dbName) {
     btn.addEventListener('click', () => {
       if (!_session.includes(btn.dataset.dueAdd) && _session.length < 5) {
         _session.push(btn.dataset.dueAdd);
-        _renderBuilder(container, dbName);
+        _renderBuilder(container, dbName).catch((err) => {
+          container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+        });
       }
     });
   });
@@ -264,23 +270,28 @@ function _handleExit(container, dbName) {
   const remaining = _queue.length - _queuePos;
   if (remaining > 0 && typeof confirm !== 'undefined' && !confirm('Exit quiz? Progress will be lost.')) return;
   _view = 'builder'; _session = []; _queue = []; _queuePos = 0; _answers = []; _quizData = null;
-  _renderBuilder(container, dbName);
+  _renderBuilder(container, dbName).catch((err) => {
+    container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+  });
 }
 
 function _renderQuestion(container, dbName) {
   if (_queuePos >= _queue.length) {
     _view = 'results';
-    _renderResults(container, dbName);
+    _renderResults(container, dbName).catch((err) => {
+      container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+    });
     return;
   }
   const item    = _queue[_queuePos];
-  const concept = _quizData.contentMap.get(item.conceptId);
   const pct     = Math.round((_queuePos / _queue.length) * 100);
 
   const stripHtml = [...new Set(_session)].map(cid => {
     const c      = _quizData.contentMap.get(cid);
     const color  = zoneColor(c?.zone);
-    const isDone = _answers.some(a => a.conceptId === cid) && cid !== item.conceptId;
+    const isDone = cid !== item.conceptId &&
+      _queue.filter(q => q.conceptId === cid)
+            .every(q => _answers.some(a => a.conceptId === cid && a.type === q.type && a.index === q.index));
     const isCurr = cid === item.conceptId;
     const cls    = isCurr ? ' quiz-concept-pill--current' : isDone ? ' quiz-concept-pill--done' : '';
     const style  = isCurr ? ' style="color:' + color + ';border-color:' + color + '"' : '';
@@ -489,7 +500,9 @@ async function _renderResults(container, dbName) {
   if (doneBtn) {
     doneBtn.addEventListener('click', () => {
       _view = 'builder'; _session = []; _queue = []; _queuePos = 0; _answers = []; _quizData = null;
-      _renderBuilder(container, dbName);
+      _renderBuilder(container, dbName).catch((err) => {
+        container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+      });
     });
   }
 }
