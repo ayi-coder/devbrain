@@ -30,6 +30,11 @@ export const ZONE_NAMES = {
   'cloud-deploy':   'Cloud & Deploy',
 };
 
+export const ZONE_ORDER = [
+  'your-machine', 'shell-terminal', 'git-github', 'the-web',
+  'editor-code', 'packages-env', 'ai-prompting', 'cloud-deploy',
+];
+
 /** Converts zone-style kebab IDs to Title Case display names.
  *  e.g. 'bash-commands' → 'Bash Commands' */
 export function subcatName(id) {

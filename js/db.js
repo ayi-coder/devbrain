@@ -1,3 +1,5 @@
+import { ZONE_ORDER } from './zones.js';
+
 const DB_VERSION = 2;
 const DB_NAME_PROD = 'devbrain';
 
@@ -272,11 +274,6 @@ export async function getCurriculumData(dbName = DB_NAME_PROD) {
     const subcats = zoneIndex.get(c.zone);
     subcats.set(c.subcategory, (subcats.get(c.subcategory) ?? 0) + 1);
   }
-
-  const ZONE_ORDER = [
-    'your-machine', 'shell-terminal', 'git-github', 'the-web',
-    'editor-code', 'packages-env', 'ai-prompting', 'cloud-deploy',
-  ];
 
   const allNonBridge = allContent.filter((c) => !c.is_bridge);
 
