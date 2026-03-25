@@ -97,7 +97,7 @@ function _renderZones(container, data, dbName) {
       '<div class="zone-row' + (isOpen ? ' zone-row--open' : '') + '" data-zone="' + zone.id + '">' +
         '<div class="zone-row__top">' +
           '<div class="zone-row__dot" style="background:' + color + '"></div>' +
-          '<div class="zone-row__name">' + name + '</div>' +
+          '<div class="zone-row__name">' + _esc(name) + '</div>' +
           '<div class="zone-row__progress">' + zone.practiced + ' / ' + zone.total + '</div>' +
           '<button class="zone-row__map-btn" data-mapzone="' + zone.id + '">Map \u2197</button>' +
           '<span class="zone-row__chevron">\u203a</span>' +
@@ -114,7 +114,7 @@ function _renderZones(container, data, dbName) {
         html +=
           '<div class="subcat-row" data-subcat="' + subcat.id + '" data-subcat-zone="' + zone.id + '"' +
               ' style="border-left-color:' + color + '">' +
-            '<span class="subcat-row__name">' + displayName + '</span>' +
+            '<span class="subcat-row__name">' + _esc(displayName) + '</span>' +
             '<span class="subcat-row__count">' + subcat.total + '</span>' +
             '<button class="subcat-row__map-btn" data-mapsubcat="' + subcat.id + '">Map \u2197</button>' +
           '</div>';
@@ -181,16 +181,16 @@ function _renderConceptList(container, data, { zoneId, subcatId }, dbName) {
     rows +=
       '<div class="concept-row" data-concept="' + concept.id + '">' +
         '<div class="concept-row__dot" style="background:' + STATUS_COLOR[status] + '"></div>' +
-        '<div class="concept-row__name">' + concept.name + '</div>' +
+        '<div class="concept-row__name">' + _esc(concept.name) + '</div>' +
         '<div class="concept-row__status">' + STATUS_LABEL[status] + '</div>' +
       '</div>';
   }
 
   container.innerHTML =
     '<div class="curriculum-screen__header">' +
-      '<button class="curriculum-screen__back">\u2190 ' + zoneName + '</button>' +
+      '<button class="curriculum-screen__back">\u2190 ' + _esc(zoneName) + '</button>' +
       '<span class="curriculum-screen__zone-tag" style="background:' + color + '">' +
-        subcatDisplayName +
+        _esc(subcatDisplayName) +
       '</span>' +
     '</div>' +
     '<div>' + rows + '</div>';
@@ -228,10 +228,10 @@ function renderLinkedText(text, contentMap, isOverlay) {
     if (!linked) return seg.text;
     const color = zoneColor(linked.zone);
     if (isOverlay) {
-      return '<span class="concept-link" style="color:' + color + '">' + seg.text + '</span>';
+      return '<span class="concept-link" style="color:' + color + '">' + _esc(seg.text) + '</span>';
     }
     return '<span class="concept-link" data-concept-id="' + seg.conceptId + '"' +
-      ' style="color:' + color + '">' + seg.text + '</span>';
+      ' style="color:' + color + '">' + _esc(seg.text) + '</span>';
   }).join('');
 }
 
@@ -297,17 +297,17 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
   const commandBlock = concept.example_command
     ? '<div class="lesson-section">' +
         '<div class="lesson-section__label">Example Command</div>' +
-        '<div class="lesson__command">' + concept.example_command + '</div>' +
+        '<div class="lesson__command">' + _esc(concept.example_command) + '</div>' +
       '</div>'
     : '';
 
   // Examples: first visible one always shown; remaining behind Read more toggle
   const visible = concept.examples.filter((e) => e.visible);
   const hidden = concept.examples.filter((e) => !e.visible);
-  const visibleHtml = visible.map((e) => '<div class="lesson__example">' + e.text + '</div>').join('');
+  const visibleHtml = visible.map((e) => '<div class="lesson__example">' + _esc(e.text) + '</div>').join('');
   const hiddenHtml = hidden.length > 0
     ? '<div class="lesson__hidden-examples" style="display:none">' +
-        hidden.map((e) => '<div class="lesson__example">' + e.text + '</div>').join('') +
+        hidden.map((e) => '<div class="lesson__example">' + _esc(e.text) + '</div>').join('') +
       '</div>' +
       '<button class="lesson__read-more">Read more \u25be</button>'
     : '';
@@ -318,7 +318,7 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
     '</div>' +
     '<div class="lesson">' +
       '<div class="lesson__name">' + _esc(concept.name) + '</div>' +
-      '<span class="lesson__zone-tag" style="background:' + color + '">' + zoneName + '</span>' +
+      '<span class="lesson__zone-tag" style="background:' + color + '">' + _esc(zoneName) + '</span>' +
       '<div class="lesson-section">' +
         '<div class="lesson-section__label">What it is</div>' +
         '<div class="lesson-section__text" id="lesson-what-it-is">' +
@@ -333,7 +333,7 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
       '</div>' +
       '<div class="lesson-section">' +
         '<div class="lesson-section__label">Use it when</div>' +
-        '<div class="lesson-section__text">' + concept.use_when + '</div>' +
+        '<div class="lesson-section__text">' + _esc(concept.use_when) + '</div>' +
       '</div>' +
       '<div class="lesson-actions">' +
         '<button class="lesson-actions__btn lesson-actions__btn--secondary" id="btn-test-self">' +
