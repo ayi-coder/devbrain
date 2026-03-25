@@ -2,6 +2,15 @@ import { getCurriculumData, markSeen, getUserProgress } from '../js/db.js';
 import { zoneColor, ZONE_NAMES, subcatName } from '../js/zones.js';
 import { navigate } from '../js/router.js';
 
+/** Escapes HTML special characters for safe innerHTML insertion. */
+function _esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // ── Module-level navigation state ─────────────────────────────────────
 // Persists across tab switches. Reset via _resetCurriculumState() in tests.
 let _openZones = new Set(); // zone IDs with expanded accordion rows
@@ -211,7 +220,7 @@ function _renderConceptList(container, data, { zoneId, subcatId }, dbName) {
  * isOverlay=true: spans are colored but not clickable (overlay depth cap — spec §3.5.1).
  * Unknown concept IDs fall back to plain text.
  */
-function renderLinkedText(text, contentMap, progressMap, isOverlay) {
+function renderLinkedText(text, contentMap, isOverlay) {
   const segments = parseLinks(text);
   return segments.map((seg) => {
     if (typeof seg === 'string') return seg;
@@ -243,7 +252,7 @@ function _showLinkedConcept(container, data, conceptId, backToName) {
   const bodyHTML = isLocked
     ? '<p class="overlay-sheet__locked">Explore more of this zone to unlock</p>'
     : '<div class="overlay-sheet__text">' +
-        renderLinkedText(concept.what_it_is, data.contentMap, data.progressMap, true) +
+        renderLinkedText(concept.what_it_is, data.contentMap, true) +
       '</div>';
 
   const backdrop = document.createElement('div');
@@ -253,9 +262,9 @@ function _showLinkedConcept(container, data, conceptId, backToName) {
   sheet.className = 'overlay-sheet';
   sheet.innerHTML =
     '<div class="overlay-sheet__handle"></div>' +
-    '<button class="overlay-sheet__back">\u2190 Back to ' + backToName + '</button>' +
-    '<div class="overlay-sheet__name">' + concept.name + '</div>' +
-    '<span class="overlay-sheet__zone-tag" style="background:' + color + '">' + zoneName + '</span>' +
+    '<button class="overlay-sheet__back">\u2190 Back to ' + _esc(backToName) + '</button>' +
+    '<div class="overlay-sheet__name">' + _esc(concept.name) + '</div>' +
+    '<span class="overlay-sheet__zone-tag" style="background:' + color + '">' + _esc(zoneName) + '</span>' +
     bodyHTML;
 
   const close = () => { backdrop.remove(); sheet.remove(); };
@@ -305,15 +314,15 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
 
   container.innerHTML =
     '<div class="curriculum-screen__header">' +
-      '<button class="curriculum-screen__back">\u2190 ' + subcatDisplayName + '</button>' +
+      '<button class="curriculum-screen__back">\u2190 ' + _esc(subcatDisplayName) + '</button>' +
     '</div>' +
     '<div class="lesson">' +
-      '<div class="lesson__name">' + concept.name + '</div>' +
+      '<div class="lesson__name">' + _esc(concept.name) + '</div>' +
       '<span class="lesson__zone-tag" style="background:' + color + '">' + zoneName + '</span>' +
       '<div class="lesson-section">' +
         '<div class="lesson-section__label">What it is</div>' +
         '<div class="lesson-section__text" id="lesson-what-it-is">' +
-          renderLinkedText(concept.what_it_is, data.contentMap, data.progressMap, false) +
+          renderLinkedText(concept.what_it_is, data.contentMap, false) +
         '</div>' +
       '</div>' +
       commandBlock +
