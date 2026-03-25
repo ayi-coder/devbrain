@@ -1,4 +1,4 @@
-import { getAllContent, seedContent, getAllUserProgress, upsertUserProgress } from './db.js';
+import { getAllContent, addContentIfNew, getAllUserProgress, upsertUserProgress } from './db.js';
 
 const DEFAULT_PROGRESS = {
   seen: false,
@@ -16,16 +16,13 @@ const DEFAULT_PROGRESS = {
 };
 
 export async function loadCurriculum(dbName = 'devbrain') {
-  // Guard on progress records (not content) so a partially-completed seed — where content
-  // was written but the tab was killed before progress writes finished — gets retried.
   const existingProgress = await getAllUserProgress(dbName);
-  if (existingProgress.length > 0) return; // already seeded — idempotent
 
   const response = await fetch('/data/curriculum.json');
   if (!response.ok) throw new Error(`Failed to load curriculum: ${response.status}`);
   const concepts = await response.json();
 
-  await seedContent(concepts, dbName);
+  await addContentIfNew(concepts, dbName);
 
   const seenIds = new Set(existingProgress.map((p) => p.id));
 
