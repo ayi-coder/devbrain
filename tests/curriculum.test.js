@@ -294,4 +294,26 @@ describe('renderCurriculum (btn-check label)', () => {
       'button label should be "Check my understanding" when check_completed is false',
     );
   });
+
+  it('renders Check again button when check_completed is true', async () => {
+    const dbName = mkName();
+    await openDB(dbName);
+    await seedContent([sampleConcept], dbName);
+    await upsertUserProgress({ ...defaultProg, id: 'c1', seen: true, check_completed: true }, dbName);
+
+    _resetCurriculumState({
+      navStack: [{
+        type: 'lesson', conceptId: 'c1',
+        zoneId: 'shell-terminal', subcatId: 'bash-commands',
+      }],
+    });
+
+    const container = makeMockContainer();
+    await renderCurriculum(container, {}, dbName);
+
+    assert.ok(
+      container.innerHTML.includes('Check again'),
+      'button label should be "Check again" when check_completed is true',
+    );
+  });
 });

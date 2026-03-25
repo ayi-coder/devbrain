@@ -65,7 +65,8 @@ export function _selectCheckQuestions(concept, progress) {
   const defs = concept.questions?.definition ?? [];
   const usedIndices = progress?.check_used_indices?.definition ?? [];
   const unused = defs.map((_, i) => i).filter((i) => !usedIndices.includes(i));
-  const pool = unused.length >= 3 ? unused : defs.map((_, i) => i);
+  const fill = defs.map((_, i) => i).filter((i) => !unused.includes(i));
+  const pool = [...unused, ...fill];
   return pool.slice(0, 3).map((i) => ({ index: i, question: defs[i] }));
 }
 
@@ -416,15 +417,12 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
   let qIndex = 0;
   const answers = [];
   let answered = false;
+  let reviewShowing = false;
 
   backdrop.addEventListener('click', () => {
-    if (answers.length === 0) {
-      close();
-      return;
-    }
-    if (confirm('Leave the check? Your progress won\'t be saved.')) {
-      close();
-    }
+    if (reviewShowing) { close(); return; }   // review done — just close
+    if (answers.length === 0) { close(); return; }  // before first answer — just close
+    if (confirm('Leave the check? Your progress won\'t be saved.')) close();
   });
 
   function renderQuestion() {
@@ -500,6 +498,7 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
   }
 
   function renderReview() {
+    reviewShowing = true;
     const usedIndices = questions.map((q) => q.index);
 
     const reviewItems = questions.map((q) => {
