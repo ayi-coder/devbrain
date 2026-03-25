@@ -44,6 +44,9 @@ export function navigate(view, params = {}) {
 }
 
 export function initRouter(routes) {
+  document.querySelectorAll('.nav-tab').forEach((tab) => {
+    tab.addEventListener('click', () => navigate(tab.dataset.view));
+  });
   window.addEventListener('hashchange', () => handleRoute(routes));
   handleRoute(routes);
 }
