@@ -26,12 +26,14 @@
             "It connects you to the internet",
             "It stores your files on the hard drive"
           ],
-          "correct_index": 1
+          "correct_index": 1,
+          "explanation": "The OS sits between your hardware and your apps. It manages the CPU, memory, and devices — and gives every program a consistent way to use them. Without it, apps would have to talk to hardware directly, which would be chaos."
         },
         {
           "prompt": "Which of these is an operating system?",
           "options": ["Google Chrome", "Microsoft Word", "macOS", "VS Code"],
-          "correct_index": 2
+          "correct_index": 2,
+          "explanation": "macOS is Apple's operating system — the software that runs your Mac before anything else starts. Chrome, Word, and VS Code are all apps that run on top of an OS, not OS's themselves."
         }
       ],
       "usage": [
@@ -127,7 +129,8 @@
             "It compresses files to save space",
             "It syncs files to the cloud automatically"
           ],
-          "correct_index": 1
+          "correct_index": 1,
+          "explanation": "The file system is the invisible layer that knows where every file lives on your disk. Without it, your hard drive would be a sea of raw data with no way to find anything. It's what makes 'open this file' actually work."
         },
         {
           "prompt": "Which of these best describes the file system?",
@@ -137,7 +140,8 @@
             "The rulebook your OS uses to store and find files on disk",
             "The physical hard drive in your computer"
           ],
-          "correct_index": 2
+          "correct_index": 2,
+          "explanation": "The file system is a set of rules built into the OS — not something you install, and not the physical drive itself. It defines how files get named, where they go, and how they're found. Think of it as the index for your hard drive."
         }
       ],
       "usage": [
@@ -233,12 +237,14 @@
             "Lists the contents of a directory",
             "Deletes a directory"
           ],
-          "correct_index": 1
+          "correct_index": 1,
+          "explanation": "`mkdir` = make directory. It creates a new folder wherever you tell it to. `mv` moves things, `ls` lists things, `rm` removes things — `mkdir` is the one that makes new folders."
         },
         {
           "prompt": "What does `mkdir` stand for?",
           "options": ["Modify Directory", "Move Directory", "Make Directory", "Map Directory"],
-          "correct_index": 2
+          "correct_index": 2,
+          "explanation": "Unix commands are almost always abbreviations: `cd` = change directory, `ls` = list, `rm` = remove, `mkdir` = make directory. Once you see the pattern, you can often guess what a command does just from its name."
         }
       ],
       "usage": [

@@ -198,6 +198,11 @@ body {
 }
 .view--active {
   display: block;
+  animation: view-fade-in 0.2s ease-out both;
+}
+@keyframes view-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 /* Curriculum and quiz manage their own internal padding */
 #view-curriculum,
@@ -988,4 +993,79 @@ body {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* ── Quiz explanation dropdown ───────────────────────────────────── */
+.quiz-explanation {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+  margin-top: 10px;
+}
+.quiz-explanation--open {
+  grid-template-rows: 1fr;
+}
+.quiz-explanation__inner {
+  overflow: hidden;
+}
+.quiz-explanation__text {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #abb2bf;
+  padding: 12px 14px;
+  background: #13151b;
+  border-radius: 8px;
+  border-left: 3px solid #e06c75;
+  margin-bottom: 4px;
+}
+.quiz-next-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px;
+  background: none;
+  border: 1px solid #2e333d;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #61afef;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  animation: view-fade-in 0.2s ease-out both;
+}
+.quiz-next-btn:active { background: #1a1d24; }
+
+/* ── Navigation slide-in (curriculum drill-down) ─────────────────── */
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.nav-animate-in {
+  animation: slide-in-right 0.2s ease-out both;
+}
+
+/* ── Button + option tap feedback ────────────────────────────────── */
+.quiz-mc-option {
+  transition: background 0.12s, border-color 0.12s, transform 0.1s;
+}
+.quiz-mc-option:active:not([disabled]) {
+  transform: scale(0.98);
+}
+.concept-row,
+.subcat-row,
+.zone-row {
+  transition: background 0.12s;
+}
+.lesson-actions__btn {
+  transition: opacity 0.15s, transform 0.1s;
+}
+.lesson-actions__btn:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+.check-option {
+  transition: background 0.12s, border-color 0.12s, transform 0.1s;
+}
+.check-option:active:not([disabled]) {
+  transform: scale(0.98);
 }

@@ -17,6 +17,14 @@ let _openZones = new Set(); // zone IDs with expanded accordion rows
 let _navStack = [];         // push entries: {type:'concepts',...} | {type:'lesson',...}
 let _scrollY = 0;           // zones-view scroll position, saved before navigating away
 
+/** Triggers a slide-in animation on the container for navigation transitions. */
+function _animateIn(el) {
+  if (!el.classList) return;
+  el.classList.remove('nav-animate-in');
+  void el.offsetWidth;
+  el.classList.add('nav-animate-in');
+}
+
 /** TEST USE ONLY — reset navigation state between tests. */
 export function _resetCurriculumState(state = {}) {
   _openZones = new Set(state.openZones ?? []);
@@ -200,6 +208,7 @@ function _renderConceptList(container, data, { zoneId, subcatId }, dbName) {
       '</div>';
   }
 
+  _animateIn(container);
   container.innerHTML =
     '<div class="curriculum-screen__header">' +
       '<button class="curriculum-screen__back">\u2190 ' + _esc(zoneName) + '</button>' +

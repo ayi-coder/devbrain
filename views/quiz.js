@@ -323,12 +323,22 @@ function _renderMCQuestion(container, item, dbName, headerHtml) {
   const optionsHtml = q.options
     .map((opt, i) => '<button class="quiz-mc-option" data-opt="' + i + '">' + _esc(opt) + '</button>')
     .join('');
-  container.innerHTML =
+  const explanationHtml = q.explanation
+    ? '<div class="quiz-explanation" id="quiz-explanation">' +
+        '<div class="quiz-explanation__inner">' +
+          '<div class="quiz-explanation__text">' + _esc(q.explanation) + '</div>' +
+        '</div>' +
+      '</div>'
+    : '';
+  const html =
     headerHtml +
     '<div class="quiz-question">' +
       '<div class="quiz-question__prompt">' + _esc(q.prompt) + '</div>' +
       '<div class="quiz-mc-options">' + optionsHtml + '</div>' +
+      explanationHtml +
+      '<button class="quiz-next-btn" id="quiz-next-btn" style="display:none">Next \u2192</button>' +
     '</div>';
+  container.innerHTML = html;
   container.querySelectorAll('.quiz-mc-option').forEach(btn => {
     btn.addEventListener('click', async () => {
       const chosen  = parseInt(btn.dataset.opt, 10);
@@ -337,10 +347,20 @@ function _renderMCQuestion(container, item, dbName, headerHtml) {
         b.disabled = true;
         if (parseInt(b.dataset.opt, 10) === q.correct_index) b.classList.add('quiz-mc-option--correct');
       });
-      if (!correct) btn.classList.add('quiz-mc-option--wrong');
       await applyQuizResult(item.conceptId, correct, item.type, item.index, dbName);
       _answers.push({ conceptId: item.conceptId, type: item.type, index: item.index, correct });
-      setTimeout(() => _advance(container, dbName), 1200);
+      if (!correct) {
+        btn.classList.add('quiz-mc-option--wrong');
+        const exp = container.querySelector('#quiz-explanation');
+        if (exp) exp.classList.add('quiz-explanation--open');
+        const nextBtn = container.querySelector('#quiz-next-btn');
+        if (nextBtn) {
+          nextBtn.style.display = 'block';
+          nextBtn.addEventListener('click', () => _advance(container, dbName));
+        }
+      } else {
+        setTimeout(() => _advance(container, dbName), 1000);
+      }
     });
   });
 }
