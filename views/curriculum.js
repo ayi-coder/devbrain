@@ -153,7 +153,55 @@ function _renderZones(container, data, dbName) {
 // ── Level 3: concept list (stub — filled in Task 4) ────────────────────
 
 function _renderConceptList(container, data, { zoneId, subcatId }, dbName) {
-  container.innerHTML = '<p style="padding:20px;color:#4b5263">Concept list — Task 4</p>';
+  const today = new Date().toISOString().slice(0, 10);
+  const color = zoneColor(zoneId);
+  const zoneName = ZONE_NAMES[zoneId] ?? zoneId;
+  const subcatDisplayName = subcatName(subcatId);
+
+  const STATUS_COLOR = { done: '#98c379', due: '#e5c07b', new: '#61afef', locked: '#3e4451' };
+  const STATUS_LABEL = { done: 'done', due: 'review', new: 'new', locked: 'locked' };
+
+  const concepts = [...data.contentMap.values()].filter(
+    (c) => !c.is_bridge && c.subcategory === subcatId,
+  );
+
+  let rows = '';
+  for (const concept of concepts) {
+    const progress = data.progressMap.get(concept.id);
+    const status = conceptStatus(progress, today);
+    rows +=
+      '<div class="concept-row" data-concept="' + concept.id + '">' +
+        '<div class="concept-row__dot" style="background:' + STATUS_COLOR[status] + '"></div>' +
+        '<div class="concept-row__name">' + concept.name + '</div>' +
+        '<div class="concept-row__status">' + STATUS_LABEL[status] + '</div>' +
+      '</div>';
+  }
+
+  container.innerHTML =
+    '<div class="curriculum-screen__header">' +
+      '<button class="curriculum-screen__back">\u2190 ' + zoneName + '</button>' +
+      '<span class="curriculum-screen__zone-tag" style="background:' + color + '">' +
+        subcatDisplayName +
+      '</span>' +
+    '</div>' +
+    '<div>' + rows + '</div>';
+
+  container.querySelector('.curriculum-screen__back').addEventListener('click', () => {
+    _navStack.pop();
+    _render(container, data, dbName).catch((err) => {
+      container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+    });
+  });
+
+  container.querySelectorAll('.concept-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const conceptId = row.dataset.concept;
+      _navStack.push({ type: 'lesson', conceptId, zoneId, subcatId });
+      _renderLesson(container, data, { conceptId, zoneId, subcatId }, dbName).catch((err) => {
+        container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+      });
+    });
+  });
 }
 
 // ── Level 4: lesson screen (stub — filled in Task 5) ───────────────────

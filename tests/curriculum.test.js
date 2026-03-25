@@ -130,4 +130,21 @@ describe('renderCurriculum', () => {
 
     assert.ok(container.innerHTML.includes('1 concepts total'), 'total count in header');
   });
+
+  it('concept list screen shows concept names after nav push', async () => {
+    const dbName = mkName();
+    await openDB(dbName);
+    await seedContent([sampleConcept], dbName);
+    await upsertUserProgress({ ...defaultProg, id: 'c1' }, dbName);
+
+    // Simulate user having navigated to concept list for bash-commands
+    _resetCurriculumState({
+      navStack: [{ type: 'concepts', zoneId: 'shell-terminal', subcatId: 'bash-commands' }],
+    });
+
+    const container = makeMockContainer();
+    await renderCurriculum(container, {}, dbName);
+
+    assert.ok(container.innerHTML.includes('mkdir'), 'concept name shown in list');
+  });
 });
