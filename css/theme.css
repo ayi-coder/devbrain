@@ -431,3 +431,321 @@ body {
 .home-health__dot  { width: 10px; height: 10px; border-radius: 50%; }
 .home-health__label { font-size: 10px; color: #4b5263; }
 .home-health__empty { font-size: 12px; color: #4b5263; text-align: center; padding: 8px 0; }
+
+/* ── Curriculum Tab ──────────────────────────────────────────────── */
+.curriculum-header {
+  padding: 20px 16px 12px;
+}
+.curriculum-header__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e5c07b;
+  margin-bottom: 4px;
+}
+.curriculum-header__subtitle {
+  font-size: 12px;
+  color: #4b5263;
+}
+
+/* Zone accordion */
+.zone-row {
+  padding: 0 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.zone-row__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0 10px;
+}
+.zone-row__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.zone-row__name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #abb2bf;
+}
+.zone-row__progress {
+  font-size: 12px;
+  color: #4b5263;
+}
+.zone-row__map-btn {
+  font-size: 11px;
+  color: #61afef;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.zone-row__chevron {
+  font-size: 12px;
+  color: #4b5263;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.zone-row--open .zone-row__chevron {
+  transform: rotate(90deg);
+}
+.zone-row__bar {
+  height: 2px;
+  background: #1a1e28;
+}
+.zone-row__bar-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+/* Subcategory list */
+.subcat-list {
+  padding: 4px 0 8px;
+}
+.subcat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px 11px 26px;
+  border-left: 2px solid transparent;
+  margin-left: 16px;
+  cursor: pointer;
+}
+.subcat-row:active { background: #161b27; }
+.subcat-row__name {
+  flex: 1;
+  font-size: 13px;
+  color: #abb2bf;
+}
+.subcat-row__count {
+  font-size: 11px;
+  background: #1a1e28;
+  color: #4b5263;
+  border-radius: 10px;
+  padding: 2px 7px;
+}
+.subcat-row__map-btn {
+  font-size: 11px;
+  color: #61afef;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+/* Shared push-screen header */
+.curriculum-screen__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid #1a1e28;
+  flex-shrink: 0;
+}
+.curriculum-screen__back {
+  font-size: 13px;
+  color: #61afef;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.curriculum-screen__zone-tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Concept list rows */
+.concept-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #161b27;
+  cursor: pointer;
+}
+.concept-row:active { background: #161b27; }
+.concept-row__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.concept-row__name {
+  flex: 1;
+  font-size: 14px;
+  color: #abb2bf;
+}
+.concept-row__status {
+  font-size: 11px;
+  color: #4b5263;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Lesson screen */
+.lesson {
+  padding: 0 16px 120px;
+  overflow-y: auto;
+}
+.lesson__name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e5c07b;
+  margin: 16px 0 8px;
+}
+.lesson__zone-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 10px;
+  color: #fff;
+  margin-bottom: 20px;
+}
+.lesson-section {
+  margin-bottom: 20px;
+}
+.lesson-section__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #4b5263;
+  margin-bottom: 6px;
+}
+.lesson-section__text {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #abb2bf;
+}
+.lesson__command {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 14px;
+  color: #98c379;
+  background: #161b27;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+.lesson__example {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #abb2bf;
+  margin-bottom: 6px;
+}
+.lesson__read-more {
+  font-size: 13px;
+  color: #61afef;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  margin-top: 4px;
+  display: block;
+}
+.lesson-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+}
+.lesson-actions__btn {
+  flex: 1;
+  padding: 12px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  border: none;
+}
+.lesson-actions__btn--primary {
+  background: #61afef;
+  color: #1e2127;
+}
+.lesson-actions__btn--secondary {
+  background: #1a1e28;
+  color: #61afef;
+  border: 1px solid rgba(97,175,239,0.25);
+}
+
+/* Concept hyperlinks in lesson text */
+.concept-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Bottom sheet overlay */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+}
+.overlay-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #1a1e28;
+  border-radius: 16px 16px 0 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: 201;
+  padding: 0 16px 40px;
+  animation: sheet-slide-up 0.25s ease-out;
+}
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.overlay-sheet__handle {
+  width: 40px;
+  height: 4px;
+  background: #3e4451;
+  border-radius: 2px;
+  margin: 12px auto 16px;
+}
+.overlay-sheet__back {
+  font-size: 13px;
+  color: #61afef;
+  background: none;
+  border: none;
+  padding: 0 0 12px;
+  cursor: pointer;
+  display: block;
+}
+.overlay-sheet__name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e5c07b;
+  margin-bottom: 6px;
+}
+.overlay-sheet__zone-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 10px;
+  color: #fff;
+  margin-bottom: 16px;
+}
+.overlay-sheet__text {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #abb2bf;
+}
+.overlay-sheet__locked {
+  font-size: 13px;
+  color: #4b5263;
+  font-style: italic;
+}
