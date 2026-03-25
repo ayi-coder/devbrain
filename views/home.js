@@ -2,6 +2,12 @@ import { getSRSQueues, getConceptCounts, getRecentSessions } from '../js/db.js';
 import { zoneColor } from '../js/zones.js';
 import { navigate } from '../js/router.js';
 
+function _esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function nextMilestone(count) {
   for (const m of [10, 25, 50, 75, 100, 150, 200]) {
     if (m > count) return m;
@@ -65,7 +71,7 @@ export async function renderHome(container, params = {}, dbName = 'devbrain') {
     const color = zoneColor(content.zone);
     return '<div class="home-hero__pill">' +
       '<span class="home-hero__pill-dot" style="background:' + color + '"></span>' +
-      content.name +
+      _esc(content.name) +
       '</div>';
   }).join('');
 
