@@ -18,3 +18,20 @@ export const ZONE_COLORS = {
 export function zoneColor(zoneId) {
   return ZONE_COLORS[zoneId] ?? ZONE_COLORS['bridge'];
 }
+
+export const ZONE_NAMES = {
+  'your-machine':   'Your Machine',
+  'shell-terminal': 'Shell & Terminal',
+  'git-github':     'Git & GitHub',
+  'the-web':        'The Web',
+  'editor-code':    'Editor & Code',
+  'packages-env':   'Packages & Env',
+  'ai-prompting':   'AI & Prompting',
+  'cloud-deploy':   'Cloud & Deploy',
+};
+
+/** Converts zone-style kebab IDs to Title Case display names.
+ *  e.g. 'bash-commands' → 'Bash Commands' */
+export function subcatName(id) {
+  return id.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}

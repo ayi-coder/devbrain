@@ -3,7 +3,8 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDB, _resetDB, seedContent, getAllContent, getContentByZone,
   getUserProgress, getAllUserProgress, upsertUserProgress, markSeen,
-  getSRSQueues, getMapCoverageCount, saveSession, getRecentSessions } from '../js/db.js';
+  getSRSQueues, getMapCoverageCount, saveSession, getRecentSessions,
+  getCurriculumData } from '../js/db.js';
 
 // Each describe block uses a unique DB name to prevent cross-test contamination.
 // Pass the name to openDB() so each test group gets its own IndexedDB database.
@@ -255,5 +256,74 @@ describe('getRecentSessions', () => {
     }
     const result = await getRecentSessions(5, dbName);
     assert.equal(result.length, 5);
+  });
+});
+
+describe('getCurriculumData', () => {
+  const uid = () => `test-curriculum-${Math.random().toString(36).slice(2)}`;
+
+  const cA = {
+    id: 'curr-c1', name: 'Concept A', zone: 'your-machine', subcategory: 'operating-systems',
+    is_bridge: false, tier_unlocked: 1, bridge_zones: [],
+    what_it_is: 'A', analogy: '', use_when: '',
+    examples: [], example_command: null,
+    questions: { definition: [], usage: [], anatomy: [], build: [] },
+  };
+  const cB = {
+    id: 'curr-c2', name: 'Concept B', zone: 'shell-terminal', subcategory: 'bash-commands',
+    is_bridge: false, tier_unlocked: 1, bridge_zones: [],
+    what_it_is: 'B', analogy: '', use_when: '',
+    examples: [], example_command: null,
+    questions: { definition: [], usage: [], anatomy: [], build: [] },
+  };
+  const cBridge = {
+    id: 'curr-bridge', name: 'Bridge', is_bridge: true,
+    bridge_zones: ['your-machine', 'shell-terminal'], tier_unlocked: 1,
+    what_it_is: '', analogy: '', use_when: '', examples: [], example_command: null,
+    questions: { definition: [], usage: [], anatomy: [], build: [] },
+  };
+  const defProg = (id) => ({
+    id, seen: false, practiced: false, next_review_date: null, last_review_date: null,
+    ease_factor: 2.5, interval: 1, repetitions: 0,
+    used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
+  });
+
+  test('totalConcepts excludes bridge nodes', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await seedContent([cA, cB, cBridge], DB);
+    for (const id of ['curr-c1', 'curr-c2', 'curr-bridge']) {
+      await upsertUserProgress(defProg(id), DB);
+    }
+    const data = await getCurriculumData(DB);
+    assert.equal(data.totalConcepts, 2);
+  });
+
+  test('zone has correct practiced count', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await seedContent([cA], DB);
+    await upsertUserProgress({ ...defProg('curr-c1'), practiced: true }, DB);
+    const data = await getCurriculumData(DB);
+    const zone = data.zones.find((z) => z.id === 'your-machine');
+    assert.ok(zone, 'your-machine zone exists');
+    assert.equal(zone.total, 1);
+    assert.equal(zone.practiced, 1);
+  });
+
+  test('contentMap and progressMap contain all concepts', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await seedContent([cA, cB], DB);
+    for (const id of ['curr-c1', 'curr-c2']) {
+      await upsertUserProgress(defProg(id), DB);
+    }
+    const data = await getCurriculumData(DB);
+    assert.ok(data.contentMap instanceof Map);
+    assert.ok(data.contentMap.has('curr-c1'));
+    assert.ok(data.contentMap.has('curr-c2'));
+    assert.ok(data.progressMap instanceof Map);
+    assert.ok(data.progressMap.has('curr-c1'));
+    assert.ok(data.progressMap.has('curr-c2'));
   });
 });

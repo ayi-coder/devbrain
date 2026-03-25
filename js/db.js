@@ -246,6 +246,57 @@ export async function getConceptCounts(dbName = DB_NAME_PROD) {
   return { coverage, total };
 }
 
+/**
+ * Returns all data needed for the Curriculum tab in one query.
+ * { totalConcepts, zones, contentMap, progressMap }
+ *
+ * zones: array of { id, total, practiced, subcategories: [{id, total}] }
+ *   ordered by ZONE_ORDER; only zones with at least one concept included.
+ * contentMap: Map<conceptId, contentRecord>
+ * progressMap: Map<conceptId, progressRecord>
+ */
+export async function getCurriculumData(dbName = DB_NAME_PROD) {
+  const [allContent, allProgress] = await Promise.all([
+    getAllContent(dbName),
+    getAllUserProgress(dbName),
+  ]);
+
+  const progressMap = new Map(allProgress.map((p) => [p.id, p]));
+  const contentMap = new Map(allContent.map((c) => [c.id, c]));
+
+  // Index non-bridge concepts by zone → subcategory count
+  const zoneIndex = new Map(); // zoneId → Map<subcatId, number>
+  for (const c of allContent) {
+    if (c.is_bridge) continue;
+    if (!zoneIndex.has(c.zone)) zoneIndex.set(c.zone, new Map());
+    const subcats = zoneIndex.get(c.zone);
+    subcats.set(c.subcategory, (subcats.get(c.subcategory) ?? 0) + 1);
+  }
+
+  const ZONE_ORDER = [
+    'your-machine', 'shell-terminal', 'git-github', 'the-web',
+    'editor-code', 'packages-env', 'ai-prompting', 'cloud-deploy',
+  ];
+
+  const allNonBridge = allContent.filter((c) => !c.is_bridge);
+
+  const zones = ZONE_ORDER
+    .filter((id) => zoneIndex.has(id))
+    .map((zoneId) => {
+      const subcats = zoneIndex.get(zoneId);
+      const zoneContent = allNonBridge.filter((c) => c.zone === zoneId);
+      const practiced = zoneContent.filter((c) => progressMap.get(c.id)?.practiced).length;
+      return {
+        id: zoneId,
+        total: zoneContent.length,
+        practiced,
+        subcategories: [...subcats.entries()].map(([id, total]) => ({ id, total })),
+      };
+    });
+
+  return { totalConcepts: allNonBridge.length, zones, contentMap, progressMap };
+}
+
 // ── Session history (unchanged API from v1) ────────────────────────────────
 
 export async function saveSession(sessionData, dbName = DB_NAME_PROD) {
