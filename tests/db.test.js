@@ -390,6 +390,16 @@ describe('applyQuizResult', () => {
     assert.equal(p.repetitions, 2);
   });
 
+  test('correct answer rep>=2: interval=round(interval*ease_factor)', async () => {
+    const DB = uid();
+    await openDB(DB);
+    await upsertUserProgress(base({ repetitions: 2, interval: 6, ease_factor: 2.5, practiced: true }), DB);
+    await applyQuizResult('aqr-c', true, 'definition', 2, DB);
+    const p = await getUserProgress('aqr-c', DB);
+    assert.equal(p.interval, 15); // Math.round(6 * 2.5)
+    assert.equal(p.repetitions, 3);
+  });
+
   test('wrong answer resets repetitions and interval', async () => {
     const DB = uid();
     await openDB(DB);

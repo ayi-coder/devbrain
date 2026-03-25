@@ -312,12 +312,12 @@ export async function applyQuizResult(conceptId, isCorrect, qType, qIndex, dbNam
     if (repetitions === 0)      interval = 1;
     else if (repetitions === 1) interval = 6;
     else                        interval = Math.round(interval * ease_factor);
-    ease_factor = Math.max(1.3, ease_factor + 0.1);
+    ease_factor = Math.max(1.3, parseFloat((ease_factor + 0.1).toFixed(2)));
     repetitions++;
   } else {
     repetitions = 0;
     interval = 1;
-    ease_factor = Math.max(1.3, ease_factor - 0.2);
+    ease_factor = Math.max(1.3, parseFloat((ease_factor - 0.2).toFixed(2)));
   }
 
   const nextDate = new Date();
