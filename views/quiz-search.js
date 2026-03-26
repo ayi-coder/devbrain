@@ -80,7 +80,7 @@ export async function renderSearch(container, session, dbName, onDone) {
   overlay.className = 'qs-overlay';
   overlay.innerHTML =
     '<div class="qs-header">' +
-      '<button class="qs-back" id="qs-back">\u2190</button>' +
+      '<button class="qs-back" id="qs-back">\u2190 Back</button>' +
       '<div class="qs-input-wrap">' +
         '<span class="qs-icon">\u2315</span>' +
         '<input class="qs-input" id="qs-input" type="text" placeholder="Search all concepts..." autocomplete="off">' +
