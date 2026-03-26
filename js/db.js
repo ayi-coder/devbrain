@@ -258,6 +258,10 @@ export async function getSRSQueues(dbName = DB_NAME_PROD) {
   for (const progress of allProgress) {
     const content = contentMap.get(progress.id);
     if (!content || !progress.seen) continue;
+
+    // Skip concepts explored today — they're already in the "Explored Today" section
+    if (progress.last_seen_at?.slice(0, 10) === today) continue;
+
     const item = { content, progress };
 
     if (!progress.practiced) {
@@ -289,6 +293,22 @@ export async function getSRSQueues(dbName = DB_NAME_PROD) {
   );
 
   return { recommended, overdue };
+}
+
+/**
+ * Returns a Map<YYYY-MM-DD, count> for all future review dates (after today).
+ * Used to render the SRS calendar in the quiz stats view.
+ */
+export async function getUpcomingReviews(dbName = DB_NAME_PROD) {
+  const today = new Date().toISOString().slice(0, 10);
+  const allProgress = await getAllUserProgress(dbName);
+  const byDate = new Map();
+  for (const p of allProgress) {
+    if (!p.practiced || !p.next_review_date) continue;
+    if (p.next_review_date <= today) continue;
+    byDate.set(p.next_review_date, (byDate.get(p.next_review_date) ?? 0) + 1);
+  }
+  return byDate;
 }
 
 export async function getMapCoverageCount(dbName = DB_NAME_PROD) {
