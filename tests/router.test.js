@@ -21,12 +21,12 @@ describe('parseHashParams', () => {
     assert.equal(params.bar, '2');
   });
 
-  it('defaults to home for empty string', () => {
-    assert.deepEqual(parseHashParams(''), { view: 'home', params: {} });
+  it('defaults to explore for empty string', () => {
+    assert.deepEqual(parseHashParams(''), { view: 'explore', params: {} });
   });
 
-  it('defaults to home for bare hash', () => {
-    assert.deepEqual(parseHashParams('#'), { view: 'home', params: {} });
+  it('defaults to explore for bare hash', () => {
+    assert.deepEqual(parseHashParams('#'), { view: 'explore', params: {} });
   });
 
   it('decodes URI-encoded param values', () => {

@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDB, _resetDB, seedContent, upsertUserProgress, saveQuizSession } from '../js/db.js';
-import { renderHome } from '../views/home.js';
+import { renderProgress } from '../views/home.js';
 
 // Stub location so navigate() calls in renderHome don't throw in Node.js
 globalThis.location = { hash: '' };
@@ -35,7 +35,7 @@ const sampleBridge = {
   examples: [], questions: { definition: [], usage: [], anatomy: [], build: [] },
 };
 
-describe('renderHome', () => {
+describe('renderProgress', () => {
   beforeEach(() => _resetDB());
 
   it('shows due count and Ready tag when concepts are due', async () => {
@@ -52,7 +52,7 @@ describe('renderHome', () => {
     }, dbName);
 
     const container = makeMockContainer();
-    await renderHome(container, {}, dbName);
+    await renderProgress(container, {}, dbName);
 
     assert.ok(container.innerHTML.includes('1 concept'), 'should show "1 concept due"');
     assert.ok(container.innerHTML.includes('Ready for today'), 'should show ready tag');
@@ -69,7 +69,7 @@ describe('renderHome', () => {
     }, dbName);
 
     const container = makeMockContainer();
-    await renderHome(container, {}, dbName);
+    await renderProgress(container, {}, dbName);
 
     assert.ok(container.innerHTML.includes('All caught up'), 'empty state missing');
   });
@@ -88,7 +88,7 @@ describe('renderHome', () => {
     }
 
     const container = makeMockContainer();
-    await renderHome(container, {}, dbName);
+    await renderProgress(container, {}, dbName);
 
     // The number 1 rendered inside a tag -- bridge b1 is excluded
     assert.ok(/>\s*1\s*</.test(container.innerHTML), 'Map Coverage should be 1 (bridge excluded)');
@@ -106,7 +106,7 @@ describe('renderHome', () => {
     }, dbName);
 
     const container = makeMockContainer();
-    await renderHome(container, {}, dbName);
+    await renderProgress(container, {}, dbName);
 
     assert.ok(container.innerHTML.includes('Play your first quiz'));
   });
@@ -124,7 +124,7 @@ describe('renderHome', () => {
     await saveQuizSession({ session_id: 's1', date: '2026-03-24', total_questions: 5, correct_count: 4 }, dbName);
 
     const container = makeMockContainer();
-    await renderHome(container, {}, dbName);
+    await renderProgress(container, {}, dbName);
 
     assert.ok(container.innerHTML.includes('home-health__dot'));
     assert.ok(container.innerHTML.includes('#98c379'), 'green dot for 80% score');

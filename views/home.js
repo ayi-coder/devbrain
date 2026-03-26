@@ -44,7 +44,7 @@ function buildSessionDots(sessions) {
          '<div class="home-health__label">last ' + label + '</div>';
 }
 
-export async function renderHome(container, params = {}, dbName = 'devbrain') {
+export async function renderProgress(container, params = {}, dbName = 'devbrain') {
   const [{ recommended, overdue }, { coverage: mapCoverage, total: totalNonBridge }, recentSessions] = await Promise.all([
     getSRSQueues(dbName),
     getConceptCounts(dbName),
