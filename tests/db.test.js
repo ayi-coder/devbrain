@@ -3,7 +3,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDB, _resetDB, seedContent, getAllContent, getContentByZone,
   getUserProgress, getAllUserProgress, upsertUserProgress, markSeen,
-  getSRSQueues, getMapCoverageCount, saveSession, getRecentSessions,
+  getSRSQueues, getMapCoverageCount, saveQuizSession, getRecentSessions,
   getCurriculumData, applyQuizResult } from '../js/db.js';
 
 // Each describe block uses a unique DB name to prevent cross-test contamination.
@@ -232,9 +232,9 @@ describe('getRecentSessions', () => {
   test('returns sessions sorted newest-first', async () => {
     const dbName = uid();
     await openDB(dbName);
-    await saveSession({ session_id: 'a', date: '2026-03-20', total_questions: 5, correct_count: 3 }, dbName);
-    await saveSession({ session_id: 'b', date: '2026-03-24', total_questions: 5, correct_count: 4 }, dbName);
-    await saveSession({ session_id: 'c', date: '2026-03-22', total_questions: 5, correct_count: 2 }, dbName);
+    await saveQuizSession({ session_id: 'a', date: '2026-03-20', total_questions: 5, correct_count: 3 }, dbName);
+    await saveQuizSession({ session_id: 'b', date: '2026-03-24', total_questions: 5, correct_count: 4 }, dbName);
+    await saveQuizSession({ session_id: 'c', date: '2026-03-22', total_questions: 5, correct_count: 2 }, dbName);
 
     const result = await getRecentSessions(5, dbName);
     assert.equal(result.length, 3);
@@ -247,7 +247,7 @@ describe('getRecentSessions', () => {
     const dbName = uid();
     await openDB(dbName);
     for (let i = 0; i < 7; i++) {
-      await saveSession({
+      await saveQuizSession({
         session_id: `s${i}`,
         date: `2026-03-${String(i + 10).padStart(2, '0')}`,
         total_questions: 3,

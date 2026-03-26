@@ -9,9 +9,9 @@ export function setQuizActive(val) {
  * Parses a full location.hash string (e.g. '#quiz?preload=foo') into { view, params }.
  */
 export function parseHashParams(hash) {
-  const raw = (hash || '').replace(/^#/, '') || 'home';
+  const raw = (hash || '').replace(/^#/, '') || 'explore';
   const [path, query] = raw.split('?');
-  const view = path.split('/')[0] || 'home';
+  const view = path.split('/')[0] || 'explore';
   const params = {};
   if (query) {
     for (const part of query.split('&')) {
