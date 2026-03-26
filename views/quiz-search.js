@@ -100,7 +100,7 @@ export async function renderSearch(container, session, dbName, onDone) {
           currentSession = currentSession.filter((s) => s !== cid);
           rerender(); return;
         }
-        if (unseen) _showUnseenPopup(overlay, cid, allContent, () => {
+        if (unseen) _showUnseenPopup(cid, allContent, () => {
           if (!currentSession.includes(cid)) currentSession.push(cid);
           rerender();
         });
@@ -124,50 +124,96 @@ export async function renderSearch(container, session, dbName, onDone) {
   attachRows();
 }
 
-function _showUnseenPopup(overlay, conceptId, allContent, onAdd) {
+function _showUnseenPopup(conceptId, allContent, onAdd) {
   const concept = allContent.find((c) => c.id === conceptId);
   if (!concept) { onAdd(); return; }
 
-  function makePopup(showAddToQuiz) {
+  function makePopup(seenCard) {
     const popup = document.createElement('div');
     popup.className = 'qs-unseen-popup-overlay';
-    popup.innerHTML =
-      '<div class="qs-unseen-popup">' +
-        '<div class="qs-unseen-popup__dot" style="background:' + zoneColor(concept.zone) + '"></div>' +
-        '<div class="qs-unseen-popup__name">' + _esc(concept.name) + '</div>' +
-        '<div class="qs-unseen-popup__msg">' +
-          (showAddToQuiz ? 'Ready to add this to your quiz?' : 'You haven\u2019t studied this one yet.') +
-        '</div>' +
-        (!showAddToQuiz
-          ? '<button class="qs-unseen-popup__btn qs-unseen-popup__btn--card"   id="up-card">View info card</button>'
-          : '') +
-        '<button class="qs-unseen-popup__btn qs-unseen-popup__btn--add" id="up-add">' +
-          (showAddToQuiz ? 'Add to quiz' : 'Add anyway') + '</button>' +
-        (showAddToQuiz
-          ? '<button class="qs-unseen-popup__btn qs-unseen-popup__btn--cancel" id="up-cancel">Cancel</button>'
-          : '') +
-      '</div>';
-    overlay.appendChild(popup);
-    popup.querySelector('#up-add').addEventListener('click', () => { popup.remove(); onAdd(); });
-    popup.querySelector('#up-cancel')?.addEventListener('click', () => popup.remove());
-    popup.querySelector('#up-card')?.addEventListener('click', () => {
+
+    const dot  = document.createElement('div');
+    dot.className = 'qs-unseen-popup';
+
+    const dotEl = document.createElement('div');
+    dotEl.className = 'qs-unseen-popup__dot';
+    dotEl.style.background = zoneColor(concept.zone);
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'qs-unseen-popup__name';
+    nameEl.textContent = concept.name;
+
+    const msgEl = document.createElement('div');
+    msgEl.className = 'qs-unseen-popup__msg';
+    msgEl.textContent = seenCard
+      ? 'Ready to add this to your quiz?'
+      : 'You haven\u2019t studied this one yet.';
+
+    const cardBtn = document.createElement('button');
+    cardBtn.className = 'qs-unseen-popup__btn qs-unseen-popup__btn--card';
+    cardBtn.textContent = seenCard ? 'View card again' : 'View info card';
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'qs-unseen-popup__btn qs-unseen-popup__btn--add';
+    addBtn.textContent = seenCard ? 'Add to quiz' : 'Add anyway';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'qs-unseen-popup__btn qs-unseen-popup__btn--cancel';
+    cancelBtn.textContent = 'Cancel';
+
+    dot.appendChild(dotEl);
+    dot.appendChild(nameEl);
+    dot.appendChild(msgEl);
+    dot.appendChild(cardBtn);
+    dot.appendChild(addBtn);
+    dot.appendChild(cancelBtn);
+    popup.appendChild(dot);
+    document.body.appendChild(popup);
+
+    addBtn.addEventListener('click', () => { popup.remove(); onAdd(); });
+    cancelBtn.addEventListener('click', () => popup.remove());
+    cardBtn.addEventListener('click', () => {
       popup.remove();
-      _showInfoCard(overlay, concept, () => makePopup(true));
+      _showInfoCard(concept, () => makePopup(true));
     });
   }
 
   makePopup(false);
 }
 
-function _showInfoCard(overlay, concept, onBack) {
+function _showInfoCard(concept, onBack) {
   const card = document.createElement('div');
   card.className = 'qs-info-card';
+
+  const color    = zoneColor(concept.zone);
+  const zoneName = ZONE_NAMES[concept.zone] ?? concept.zone;
+
+  const visible = (concept.examples ?? []).filter((e) => e.visible !== false);
+  const examplesHtml = visible.length > 0
+    ? '<div class="qs-info-card__section-label">Examples</div>' +
+      visible.map((e) => '<div class="qs-info-card__example">' + _esc(e.text) + '</div>').join('')
+    : '';
+
+  const commandHtml = concept.example_command
+    ? '<div class="qs-info-card__section-label">Example Command</div>' +
+      '<div class="qs-info-card__command">' + _esc(concept.example_command) + '</div>'
+    : '';
+
+  const useWhenHtml = concept.use_when
+    ? '<div class="qs-info-card__section-label">Use it when</div>' +
+      '<div class="qs-info-card__text">' + _esc(concept.use_when) + '</div>'
+    : '';
+
   card.innerHTML =
     '<button class="qs-info-card__back" id="ic-back">\u2190 Back</button>' +
     '<div class="qs-info-card__name">' + _esc(concept.name) + '</div>' +
-    '<div class="qs-info-card__zone" style="color:' + zoneColor(concept.zone) + '">' +
-      _esc(ZONE_NAMES[concept.zone] ?? concept.zone) + '</div>' +
-    '<div class="qs-info-card__body">' + _esc(concept.what_it_is ?? '') + '</div>';
-  overlay.appendChild(card);
+    '<div class="qs-info-card__zone" style="color:' + color + '">' + _esc(zoneName) + '</div>' +
+    '<div class="qs-info-card__section-label">What it is</div>' +
+    '<div class="qs-info-card__text">' + _esc(concept.what_it_is ?? '') + '</div>' +
+    commandHtml +
+    examplesHtml +
+    useWhenHtml;
+
+  document.body.appendChild(card);
   card.querySelector('#ic-back').addEventListener('click', () => { card.remove(); onBack(); });
 }
