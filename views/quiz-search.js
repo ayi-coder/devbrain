@@ -177,6 +177,10 @@ function _showUnseenPopup(conceptId, allContent, dbName, progressMap, onAdd) {
     cancelBtn.className = 'qs-unseen-popup__btn qs-unseen-popup__btn--cancel';
     cancelBtn.textContent = 'Cancel';
 
+    const handleEl = document.createElement('div');
+    handleEl.className = 'qs-unseen-popup__handle';
+
+    inner.appendChild(handleEl);
     inner.appendChild(dotEl);
     inner.appendChild(nameEl);
     inner.appendChild(msgEl);

@@ -410,6 +410,7 @@ async function _handleExit(container, dbName) {
   dialog.className = 'quiz-exit-dialog-overlay';
   dialog.innerHTML =
     '<div class="quiz-exit-dialog">' +
+      '<div class="quiz-exit-dialog__handle"></div>' +
       '<div class="quiz-exit-dialog__title">Leave this session?</div>' +
       '<div class="quiz-exit-dialog__sub">You\'re ' + _queuePos + ' / ' + _queue.length + ' questions in.</div>' +
       '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--save"   id="exit-save">\ud83d\udcbe Save &amp; exit</button>' +
