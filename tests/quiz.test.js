@@ -268,3 +268,42 @@ describe('_filterConcepts', () => {
     assert.deepEqual(_filterConcepts(concepts, 'zzz'), []);
   });
 });
+
+import { selectQuizQuestions } from '../views/quiz.js';
+
+const conceptWithQ = {
+  id: 'cq', name: 'cq', zone: 'shell-terminal', subcategory: 'bash',
+  is_bridge: false, tier_unlocked: 1, bridge_zones: [], what_it_is: '',
+  analogy: '', use_when: '', examples: [],
+  questions: {
+    definition: [
+      { prompt: 'Q0', options: ['a','b','c','d'], correct_index: 0 },
+      { prompt: 'Q1', options: ['a','b','c','d'], correct_index: 1 },
+      { prompt: 'Q2', options: ['a','b','c','d'], correct_index: 2 },
+    ],
+    usage: [], anatomy: [], build: [],
+  },
+};
+
+describe('selectQuizQuestions — restricted pool', () => {
+  it('returns only wrong-indexed questions when restrictToWrong=true', () => {
+    const progress = {
+      practiced: false, t2_unlocked: false, t3_unlocked: false,
+      used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
+      wrong_answer_indices:  { definition: [1, 2], usage: [], anatomy: [], build: [] },
+    };
+    const picks = selectQuizQuestions(conceptWithQ, progress, true);
+    assert.equal(picks.length, 2);
+    assert.ok(picks.every((p) => [1, 2].includes(p.index)));
+  });
+
+  it('uses normal LRU pool when restrictToWrong=false', () => {
+    const progress = {
+      practiced: false, t2_unlocked: false, t3_unlocked: false,
+      used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
+      wrong_answer_indices:  { definition: [1], usage: [], anatomy: [], build: [] },
+    };
+    const picks = selectQuizQuestions(conceptWithQ, progress, false);
+    assert.equal(picks.length, 2);
+  });
+});
