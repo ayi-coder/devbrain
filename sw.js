@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devbrain-v7';
+const CACHE_NAME = 'devbrain-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const ASSETS = [
   './views/home.js',
   './views/curriculum.js',
   './views/quiz.js',
+  './views/quiz-search.js',
   './data/curriculum.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
