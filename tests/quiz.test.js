@@ -110,3 +110,42 @@ describe('getSavedSession / saveMidSession / deleteSavedSession', () => {
     assert.equal(await getSavedSession(DB), null);
   });
 });
+
+import { applyWrongAnswers } from '../js/db.js';
+
+describe('applyWrongAnswers', () => {
+  it('removes correct index and adds wrong index', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    await upsertUserProgress({
+      ...defaultProg('c1'),
+      wrong_answer_indices: { definition: [0], usage: [], anatomy: [], build: [] },
+    }, DB);
+    await applyWrongAnswers('c1', [
+      { type: 'definition', index: 0, correct: true  },
+      { type: 'definition', index: 1, correct: false },
+    ], DB);
+    const prog = await getUserProgress('c1', DB);
+    assert.ok(!prog.wrong_answer_indices.definition.includes(0), 'correct cleared');
+    assert.ok( prog.wrong_answer_indices.definition.includes(1), 'wrong added');
+  });
+
+  it('does not duplicate an already-present wrong index', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    await upsertUserProgress({
+      ...defaultProg('c1'),
+      wrong_answer_indices: { definition: [1], usage: [], anatomy: [], build: [] },
+    }, DB);
+    await applyWrongAnswers('c1', [{ type: 'definition', index: 1, correct: false }], DB);
+    const prog = await getUserProgress('c1', DB);
+    assert.equal(prog.wrong_answer_indices.definition.filter(i => i === 1).length, 1, 'no duplicate');
+  });
+
+  it('is a no-op when concept has no progress record', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    // No upsertUserProgress call — should not throw
+    await assert.doesNotReject(applyWrongAnswers('c1', [{ type: 'definition', index: 0, correct: false }], DB));
+  });
+});
