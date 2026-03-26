@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devbrain-v15';
+const CACHE_NAME = 'devbrain-v16';
 const ASSETS = [
   './',
   './index.html',
