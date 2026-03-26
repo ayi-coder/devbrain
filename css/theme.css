@@ -15,6 +15,14 @@
   --bg-overlay:   #1d2334;
   --bg-deep:      #0d1018;
 
+  /* Shorthand aliases used by quiz components */
+  --bg1: var(--bg-base);
+  --bg2: var(--bg-raised);
+  --bg3: var(--bg-overlay);
+  --fg:  var(--text-1);
+  --fg2: var(--text-2);
+  --fg3: var(--text-3);
+
   /* Borders */
   --border:       #222839;
   --border-hi:    #2e3a50;
@@ -1787,7 +1795,7 @@ body {
 .quiz-resume-banner__discard  { flex: 1; background: var(--bg3); border-radius: 7px; padding: 7px; font-size: 12px; color: var(--fg3); text-align: center; }
 
 /* ── Start sheet ────────────────────────────────────────────── */
-.quiz-start-sheet-overlay { position: fixed; inset: 0; background: rgba(10,12,20,0.75); z-index: 50; display: flex; flex-direction: column; justify-content: flex-end; max-width: 430px; left: 50%; transform: translateX(-50%); }
+.quiz-start-sheet-overlay { position: fixed; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: rgba(10,12,20,0.75); z-index: 50; display: flex; flex-direction: column; justify-content: flex-end; }
 .quiz-start-sheet { background: var(--bg2); border-radius: 16px 16px 0 0; padding: 16px; }
 .quiz-start-sheet__handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 14px; }
 .quiz-start-sheet__title { font-size: 14px; font-weight: 700; color: var(--fg2); margin-bottom: 12px; }
@@ -1799,7 +1807,7 @@ body {
 .quiz-start-sheet__meta { display: block; font-size: 10px; color: var(--fg3); font-weight: 400; margin-top: 3px; }
 
 /* ── Exit dialog ────────────────────────────────────────────── */
-.quiz-exit-dialog-overlay { position: fixed; inset: 0; background: rgba(10,12,20,0.8); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; max-width: 430px; left: 50%; transform: translateX(-50%); }
+.quiz-exit-dialog-overlay { position: fixed; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: rgba(10,12,20,0.8); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .quiz-exit-dialog { background: var(--bg2); border-radius: 14px; padding: 20px; width: 100%; }
 .quiz-exit-dialog__title { font-size: 14px; font-weight: 700; color: #e5c07b; margin-bottom: 6px; }
 .quiz-exit-dialog__sub   { font-size: 12px; color: var(--fg3); margin-bottom: 16px; }
@@ -1809,7 +1817,7 @@ body {
 .quiz-exit-dialog__btn--cancel { background: none; color: var(--fg3); font-size: 12px; }
 
 /* ── Search overlay ─────────────────────────────────────────── */
-.qs-overlay { position: fixed; inset: 0; background: var(--bg1); z-index: 100; display: flex; flex-direction: column; max-width: 430px; left: 50%; transform: translateX(-50%); }
+.qs-overlay { position: fixed; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--bg1); z-index: 100; display: flex; flex-direction: column; }
 .qs-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
 .qs-back { font-size: 20px; color: var(--fg3); background: none; border: none; padding: 0 4px; }
 .qs-input-wrap { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--bg2); border-radius: 10px; padding: 8px 12px; }

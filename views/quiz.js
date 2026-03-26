@@ -325,7 +325,7 @@ function _showStartSheet(container, dbName) {
       '<button class="quiz-start-sheet__btn quiz-start-sheet__btn--search" id="sheet-search">\u2315 Search all concepts</button>' +
     '</div>';
 
-  container.appendChild(sheet);
+  document.body.appendChild(sheet);
 
   getSavedSession(dbName).then((saved) => {
     if (!saved) return;
@@ -408,7 +408,7 @@ async function _handleExit(container, dbName) {
       '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--end"    id="exit-end">End session</button>' +
       '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--cancel" id="exit-cancel">Cancel \u2014 stay in quiz</button>' +
     '</div>';
-  container.appendChild(dialog);
+  document.body.appendChild(dialog);
 
   dialog.querySelector('#exit-save').addEventListener('click', async () => {
     dialog.remove();

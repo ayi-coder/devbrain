@@ -81,7 +81,7 @@ export async function renderSearch(container, session, dbName, onDone) {
     '</div>' +
     '<div class="qs-list" id="qs-list">' + buildRows() + '</div>';
 
-  container.appendChild(overlay);
+  document.body.appendChild(overlay);
   overlay.querySelector('#qs-input').focus();
 
   function rerender() {
