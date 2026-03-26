@@ -181,3 +181,66 @@ describe('applyWrongAnswers', () => {
     assert.equal(result.length, 0, 'concept removed when all wrong answers cleared');
   });
 });
+
+import { renderQuiz, _resetQuizState } from '../views/quiz.js';
+
+function mockContainer() {
+  let html = '';
+  const el = { addEventListener() {}, style: {}, disabled: false };
+  return {
+    get innerHTML() { return html; },
+    set innerHTML(v) { html = v; },
+    querySelector() { return el; },
+    querySelectorAll() { return []; },
+    addEventListener() {},
+    appendChild(child) {},
+    scrollTop: 0,
+  };
+}
+
+describe('renderQuiz — stats mode', () => {
+  it('renders EXPLORED TODAY when concepts seen in last 24hrs', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    const recent = new Date(Date.now() - 3_600_000).toISOString();
+    await upsertUserProgress({ ...defaultProg('c1'), seen: true, last_seen_at: recent }, DB);
+    _resetQuizState();
+    const container = mockContainer();
+    await renderQuiz(container, {}, DB);
+    assert.ok(container.innerHTML.includes('EXPLORED TODAY'));
+  });
+
+  it('renders REVISE WRONG ANSWERS when wrong_answer_indices non-empty', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    await upsertUserProgress({
+      ...defaultProg('c1'), seen: true,
+      wrong_answer_indices: { definition: [0], usage: [], anatomy: [], build: [] },
+    }, DB);
+    _resetQuizState();
+    const container = mockContainer();
+    await renderQuiz(container, {}, DB);
+    assert.ok(container.innerHTML.includes('REVISE WRONG'));
+  });
+
+  it('does not render data-add buttons in stats mode', async () => {
+    const DB = mkName(); await openDB(DB);
+    _resetQuizState();
+    const container = mockContainer();
+    await renderQuiz(container, {}, DB);
+    assert.ok(!container.innerHTML.includes('data-add'));
+  });
+});
+
+describe('renderQuiz — quiz mode via preload', () => {
+  it('shows data-add buttons when preload param enters quiz mode', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    const recent = new Date(Date.now() - 3_600_000).toISOString();
+    await upsertUserProgress({ ...defaultProg('c1'), seen: true, last_seen_at: recent }, DB);
+    _resetQuizState();
+    const container = mockContainer();
+    await renderQuiz(container, { preload: 'c1' }, DB);
+    assert.ok(container.innerHTML.includes('data-add'));
+  });
+});

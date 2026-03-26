@@ -1,7 +1,12 @@
-import { openDB, getSRSQueues, getAllContent, getAllUserProgress,
-         applyQuizResult, saveQuizSession } from '../js/db.js';
-import { zoneColor, ZONE_NAMES } from '../js/zones.js';
-import { navigate } from '../js/router.js';
+import {
+  openDB, getSRSQueues, getAllContent, getAllUserProgress,
+  applyQuizResult, saveQuizSession, getExploredToday,
+  getWrongAnswerConcepts, getSavedSession, saveMidSession, deleteSavedSession,
+  applyWrongAnswers,
+} from '../js/db.js';
+import { zoneColor, ZONE_NAMES, ZONE_ORDER } from '../js/zones.js';
+import { navigate, setQuizActive } from '../js/router.js';
+import { renderSearch } from './quiz-search.js';
 
 function _esc(str) {
   return String(str)
@@ -10,16 +15,15 @@ function _esc(str) {
 }
 
 // ── Module-level state ─────────────────────────────────────────────────────
-let _view     = 'builder';
-let _session  = [];          // conceptId strings, max 5
-let _queue    = [];          // [{conceptId, type, index, question}]
+let _mode     = 'stats';
+let _session  = [];
+let _queue    = [];
 let _queuePos = 0;
-let _answers  = [];          // [{conceptId, type, index, correct}]
-let _quizData = null;        // {contentMap: Map, progressMap: Map}
+let _answers  = [];
+let _quizData = null;
 
-/** TEST USE ONLY */
 export function _resetQuizState(state = {}) {
-  _view     = state.view     ?? 'builder';
+  _mode     = state.mode     ?? 'stats';
   _session  = state.session  ? [...state.session]  : [];
   _queue    = state.queue    ? [...state.queue]    : [];
   _queuePos = state.queuePos ?? 0;
@@ -29,22 +33,23 @@ export function _resetQuizState(state = {}) {
 
 // ── Pure functions ─────────────────────────────────────────────────────────
 
-/**
- * Selects quiz questions for one concept based on tier unlock state + LRU history.
- *
- * Tier unlock:
- *   T1 (definition): always
- *   T2 (usage): practiced===true AND concept has usage questions
- *   T3 (anatomy/build): T2 unlocked AND used.usage.length>0 AND anatomy/build data exists
- *
- * Count: T1 only→2 def; T1+T2→1 def+1 usage; T1+T2+T3→1 def+1 usage+1 anatomy/build
- * LRU: prefer unused indices; if all used, restart from full pool.
- * Returns [{type, index, question}]; filters picks where question===undefined.
- */
-export function selectQuizQuestions(concept, progress) {
+export function selectQuizQuestions(concept, progress, restrictToWrong = false) {
+  if (restrictToWrong) {
+    const wrong = progress?.wrong_answer_indices ?? {};
+    const picks = [];
+    for (const type of ['definition', 'usage', 'anatomy', 'build']) {
+      const indices   = wrong[type] ?? [];
+      const questions = concept.questions?.[type] ?? [];
+      for (const index of indices) {
+        const question = questions[index];
+        if (question !== undefined) picks.push({ type, index, question });
+      }
+    }
+    return picks;
+  }
+
   const used = progress?.used_question_indices
     ?? { definition: [], usage: [], anatomy: [], build: [] };
-
   const defs      = concept.questions?.definition ?? [];
   const usages    = concept.questions?.usage      ?? [];
   const anatomies = concept.questions?.anatomy    ?? [];
@@ -63,7 +68,6 @@ export function selectQuizQuestions(concept, progress) {
     && (anatomies.length > 0 || builds.length > 0);
 
   const picks = [];
-
   if (!t2Unlocked) {
     pickLRU(defs, used.definition ?? [], 2)
       .forEach(({ index, question }) => picks.push({ type: 'definition', index, question }));
@@ -83,7 +87,6 @@ export function selectQuizQuestions(concept, progress) {
     pickLRU(t3pool.arr, t3pool.used, 1)
       .forEach(({ index, question }) => picks.push({ type: t3pool.type, index, question }));
   }
-
   return picks.filter(p => p.question !== undefined);
 }
 
@@ -91,155 +94,261 @@ export function selectQuizQuestions(concept, progress) {
 
 export async function renderQuiz(container, params = {}, dbName = 'devbrain') {
   await openDB(dbName);
-  if (params.preload && !_session.includes(params.preload) && _session.length < 5) {
+  if (params.preload && !_session.includes(params.preload)) {
     _session.push(params.preload);
+    _mode = 'quiz';
   }
-  if (_view === 'quiz')         _renderQuestion(container, dbName);
-  else if (_view === 'results') await _renderResults(container, dbName);
+  if (_mode === 'active')       _renderQuestion(container, dbName);
+  else if (_mode === 'results') await _renderResults(container, dbName);
   else                          await _renderBuilder(container, dbName);
 }
 
 // ── Session builder ────────────────────────────────────────────────────────
 
 async function _renderBuilder(container, dbName) {
-  const [{ recommended, overdue }, allProgress] = await Promise.all([
+  const [exploredToday, { recommended, overdue }, wrongConcepts, savedSession] = await Promise.all([
+    getExploredToday(dbName),
     getSRSQueues(dbName),
-    getAllUserProgress(dbName),
+    getWrongAnswerConcepts(dbName),
+    getSavedSession(dbName),
   ]);
-  const hasSeen = allProgress.some(p => p.seen);
-  const isFull = _session.length >= 5;
-  const today  = new Date().toISOString().slice(0, 10);
-  const allItems   = [...recommended, ...overdue];
-  const conceptMap = new Map(allItems.map(({ content }) => [content.id, content]));
 
-  // Session card
-  let chipsHtml = '';
-  for (const id of _session) {
-    const c     = conceptMap.get(id) ?? { name: id, zone: undefined };
-    const color = zoneColor(c.zone);
-    chipsHtml +=
-      '<div class="quiz-chip">' +
-        '<span class="quiz-chip__dot" style="background:' + color + '"></span>' +
-        '<span>' + _esc(c.name) + '</span>' +
-        '<button class="quiz-chip__remove" data-remove="' + _esc(id) + '">\u00d7</button>' +
+  const inQuizMode = _mode === 'quiz';
+
+  // Resume banner
+  let resumeHtml = '';
+  if (savedSession) {
+    const names = (savedSession.session ?? []).slice(0, 3).join(' \u00b7 ');
+    const done  = savedSession.queuePos ?? 0;
+    const total = (savedSession.queue   ?? []).length;
+    resumeHtml =
+      '<div class="quiz-resume-banner">' +
+        '<div class="quiz-resume-banner__title">\u25b6 Session in progress</div>' +
+        '<div class="quiz-resume-banner__sub">' + _esc(names) + ' \u2014 ' + done + ' / ' + total + ' done</div>' +
+        '<div class="quiz-resume-banner__btns">' +
+          '<button class="quiz-resume-banner__continue" id="quiz-resume-continue">Continue \u2192</button>' +
+          '<button class="quiz-resume-banner__discard"  id="quiz-resume-discard">Discard</button>' +
+        '</div>' +
       '</div>';
   }
-  const builderHtml =
-    '<div class="quiz-builder">' +
-      '<div class="quiz-builder__header">' +
-        '<span class="quiz-builder__title">Your session</span>' +
-        '<span class="quiz-builder__count">' + _session.length + ' / 5</span>' +
-      '</div>' +
-      (_session.length === 0
-        ? '<div class="quiz-builder__empty">Tap concepts below to add them</div>'
-        : '<div class="quiz-builder__chips">' + chipsHtml + '</div>') +
-      '<button class="quiz-start-btn"' + (_session.length === 0 ? ' disabled' : '') + '>Start session \u2192</button>' +
-    '</div>';
 
-  // Recommended section
-  // hasSeen distinguishes "no concepts discovered yet" from "all caught up" (spec §5.6)
-  let recHtml = '';
-  if (!hasSeen) {
-    recHtml =
-      '<div class="quiz-empty">' +
-        'Explore the map and read lessons first \u2014 concepts you discover will appear here.' +
-      '</div>';
-  } else if (recommended.length === 0 && overdue.length === 0) {
-    recHtml =
-      '<div class="quiz-empty">' +
-        'You\u2019re all caught up \u2014 pick anything to practice anyway. ' +
-        '<button class="quiz-empty__link" id="quiz-browse-link">Browse all concepts</button>' +
-      '</div>';
-  } else if (recommended.length > 0) {
-    recHtml = '<div class="quiz-section-label">Recommended today</div>';
-    for (const { content } of recommended) {
+  // Explored Today
+  let todayHtml = '';
+  if (exploredToday.length > 0) {
+    todayHtml = '<div class="quiz-compartment">' +
+      '<div class="quiz-compartment__label quiz-compartment__label--today">EXPLORED TODAY</div>';
+    for (const { content } of exploredToday) {
       const inSession = _session.includes(content.id);
-      const color     = zoneColor(content.zone);
-      const zoneName  = ZONE_NAMES[content.zone] ?? content.zone;
-      const badgeCls  = !content.practiced ? 'rec-card__badge--new' : 'rec-card__badge--due';
-      const badgeTxt  = !content.practiced ? 'NEW' : 'DUE';
-      const dimmed    = isFull && !inSession ? ' rec-card--dimmed' : '';
-      const addBtn    = isFull && !inSession
-        ? '<span class="rec-card__full-label">Full</span>'
-        : '<button class="rec-card__add-btn' + (inSession ? ' rec-card__add-btn--added' : '') +
-            '" data-rec-add="' + _esc(content.id) + '">' + (inSession ? '\u2713' : '+') + '</button>';
-      recHtml +=
-        '<div class="rec-card' + dimmed + '">' +
-          '<span class="rec-card__dot" style="background:' + color + '"></span>' +
-          '<div class="rec-card__body">' +
-            '<div class="rec-card__name">'  + _esc(content.name) + '</div>' +
-            '<div class="rec-card__zone">'  + _esc(zoneName)     + '</div>' +
-          '</div>' +
-          '<span class="rec-card__badge ' + badgeCls + '">' + badgeTxt + '</span>' +
-          addBtn +
+      const color = zoneColor(content.zone);
+      todayHtml +=
+        '<div class="quiz-comp-row">' +
+          '<span class="quiz-comp-row__dot" style="background:' + color + '"></span>' +
+          '<span class="quiz-comp-row__name">' + _esc(content.name) + '</span>' +
+          (inQuizMode
+            ? '<button class="quiz-comp-row__add' + (inSession ? ' quiz-comp-row__add--added' : '') +
+              '" data-add="' + _esc(content.id) + '">' + (inSession ? '\u2713' : '+') + '</button>'
+            : '') +
         '</div>';
     }
+    todayHtml += '</div>';
   }
 
-  // Overdue section
-  let dueHtml = '';
-  if (overdue.length > 0) {
-    dueHtml = '<div class="quiz-section-label">Due for review</div>';
-    for (const { content, progress } of overdue) {
+  // Spaced Repetition
+  const srItems = [...recommended, ...overdue];
+  let srHtml = '';
+  if (srItems.length > 0) {
+    const today = new Date().toISOString().slice(0, 10);
+    srHtml = '<div class="quiz-compartment">' +
+      '<div class="quiz-compartment__label quiz-compartment__label--sr">SPACED REPETITION</div>';
+    for (const { content, progress } of srItems) {
       const inSession   = _session.includes(content.id);
       const color       = zoneColor(content.zone);
       const daysOverdue = progress.next_review_date
         ? Math.round((new Date(today) - new Date(progress.next_review_date)) / 86_400_000)
-        : '?';
-      const daysCls = daysOverdue >= 7 ? 'due-days--red' : daysOverdue >= 3 ? 'due-days--orange' : 'due-days--yellow';
-      dueHtml +=
-        '<div class="due-row' + (inSession ? ' due-row--added' : '') + '">' +
-          '<span class="due-days ' + daysCls + '">' + daysOverdue + 'd</span>' +
-          '<span class="due-row__dot" style="background:' + color + '"></span>' +
-          '<span class="due-row__name">' + _esc(content.name) + '</span>' +
-          '<button class="due-row__add-btn' + (inSession ? ' due-row__add-btn--added' : '') +
-              '" data-due-add="' + _esc(content.id) + '"' +
-              (isFull && !inSession ? ' disabled' : '') + '>' +
-            (inSession ? '\u2713' : '+') +
-          '</button>' +
+        : null;
+      const badgeHtml = daysOverdue !== null && daysOverdue > 0
+        ? '<span class="quiz-comp-row__badge quiz-comp-row__badge--due">' + daysOverdue + 'd</span>'
+        : '<span class="quiz-comp-row__badge quiz-comp-row__badge--new">NEW</span>';
+      srHtml +=
+        '<div class="quiz-comp-row">' +
+          '<span class="quiz-comp-row__dot" style="background:' + color + '"></span>' +
+          '<span class="quiz-comp-row__name">' + _esc(content.name) + '</span>' +
+          badgeHtml +
+          (inQuizMode
+            ? '<button class="quiz-comp-row__add' + (inSession ? ' quiz-comp-row__add--added' : '') +
+              '" data-add="' + _esc(content.id) + '">' + (inSession ? '\u2713' : '+') + '</button>'
+            : '') +
         '</div>';
     }
+    srHtml += '</div>';
   }
 
-  container.innerHTML =
-    '<div style="padding:16px">' + builderHtml + recHtml + dueHtml + '</div>';
+  // Revise Wrong Answers
+  let wrongHtml = '';
+  if (wrongConcepts.length > 0) {
+    wrongHtml = '<div class="quiz-compartment">' +
+      '<div class="quiz-compartment__label quiz-compartment__label--wrong">REVISE WRONG ANSWERS</div>';
+    for (const { content, progress } of wrongConcepts) {
+      const inSession  = _session.includes(content.id);
+      const color      = zoneColor(content.zone);
+      const wrongCount = Object.values(progress.wrong_answer_indices ?? {})
+        .reduce((sum, arr) => sum + arr.length, 0);
+      wrongHtml +=
+        '<div class="quiz-comp-row">' +
+          '<span class="quiz-comp-row__dot" style="background:' + color + '"></span>' +
+          '<span class="quiz-comp-row__name">' + _esc(content.name) + '</span>' +
+          '<span class="quiz-comp-row__badge quiz-comp-row__badge--wrong">' + wrongCount + ' wrong</span>' +
+          (inQuizMode
+            ? '<button class="quiz-comp-row__add' + (inSession ? ' quiz-comp-row__add--added' : '') +
+              '" data-add="' + _esc(content.id) + '">' + (inSession ? '\u2713' : '+') + '</button>'
+            : '') +
+        '</div>';
+    }
+    wrongHtml += '</div>';
+  }
 
-  container.querySelectorAll('[data-remove]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      _session = _session.filter(s => s !== btn.dataset.remove);
-      _renderBuilder(container, dbName).catch((err) => {
-        container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
-      });
-    });
-  });
-  container.querySelectorAll('[data-rec-add]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (!_session.includes(btn.dataset.recAdd) && _session.length < 5) {
-        _session.push(btn.dataset.recAdd);
-        _renderBuilder(container, dbName).catch((err) => {
-          container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
-        });
-      }
-    });
-  });
-  container.querySelectorAll('[data-due-add]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (!_session.includes(btn.dataset.dueAdd) && _session.length < 5) {
-        _session.push(btn.dataset.dueAdd);
-        _renderBuilder(container, dbName).catch((err) => {
-          container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
-        });
-      }
-    });
-  });
-  const browseLink = container.querySelector('#quiz-browse-link');
-  if (browseLink) browseLink.addEventListener('click', () => navigate('curriculum'));
-  const startBtn = container.querySelector('.quiz-start-btn');
-  if (startBtn) startBtn.addEventListener('click', () => _startSession(container, dbName));
+  const searchHtml = inQuizMode
+    ? '<div class="quiz-search-bar" id="quiz-search-bar">' +
+        '<span class="quiz-search-bar__icon">\u2315</span>' +
+        '<span class="quiz-search-bar__placeholder">Search all concepts...</span>' +
+      '</div>'
+    : '';
+
+  container.innerHTML =
+    '<div class="quiz-builder-wrap">' +
+      searchHtml + resumeHtml + todayHtml + srHtml + wrongHtml +
+    '</div>' +
+    _buildFooterHtml();
+
+  _attachBuilderListeners(container, dbName);
 }
 
-// ── Active quiz ────────────────────────────────────────────────────────────
+function _buildFooterHtml() {
+  if (_mode === 'stats') {
+    return '<div class="quiz-footer quiz-footer--stats">' +
+      '<span class="quiz-footer__hint">Nothing selected</span>' +
+      '<button class="quiz-footer__quiz-btn" id="quiz-mode-enter">Quiz \u203a</button>' +
+    '</div>';
+  }
+  if (_session.length === 0) {
+    return '<div class="quiz-footer quiz-footer--quiz-empty">' +
+      '<span class="quiz-footer__hint">Tap + or search to add concepts</span>' +
+    '</div>';
+  }
+  const chips = _session.map((id) =>
+    '<div class="quiz-chip">' +
+      '<span class="quiz-chip__name">' + _esc(id) + '</span>' +
+      '<button class="quiz-chip__remove" data-remove="' + _esc(id) + '">\u00d7</button>' +
+    '</div>',
+  ).join('');
+  return '<div class="quiz-footer quiz-footer--quiz-active">' +
+    '<div class="quiz-footer__chips">' + chips + '</div>' +
+    '<button class="quiz-footer__start" id="quiz-start-btn">Start \u2192</button>' +
+  '</div>';
+}
+
+function _attachBuilderListeners(container, dbName) {
+  const rerender = () => _renderBuilder(container, dbName).catch((err) => {
+    container.innerHTML = '<p style="padding:20px;color:var(--red)">' + _esc(err.message) + '</p>';
+  });
+
+  container.querySelector('#quiz-mode-enter')
+    ?.addEventListener('click', () => _showStartSheet(container, dbName));
+
+  container.querySelector('#quiz-resume-continue')
+    ?.addEventListener('click', async () => {
+      const saved = await getSavedSession(dbName);
+      if (!saved) return;
+      _session = saved.session ?? []; _queue = saved.queue ?? [];
+      _queuePos = saved.queuePos ?? 0; _answers = saved.answers ?? [];
+      _mode = 'active';
+      setQuizActive(true);
+      _renderQuestion(container, dbName);
+    });
+
+  container.querySelector('#quiz-resume-discard')
+    ?.addEventListener('click', async () => {
+      await deleteSavedSession(dbName);
+      rerender();
+    });
+
+  container.querySelectorAll('[data-add]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.add;
+      _session = _session.includes(id)
+        ? _session.filter((s) => s !== id)
+        : [..._session, id];
+      rerender();
+    });
+  });
+
+  container.querySelectorAll('[data-remove]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _session = _session.filter((s) => s !== btn.dataset.remove);
+      rerender();
+    });
+  });
+
+  container.querySelector('#quiz-start-btn')
+    ?.addEventListener('click', () => _startSession(container, dbName));
+
+  container.querySelector('#quiz-search-bar')
+    ?.addEventListener('click', () =>
+      renderSearch(container, _session, dbName, (updated) => {
+        _session = updated;
+        rerender();
+      }),
+    );
+}
+
+function _showStartSheet(container, dbName) {
+  const rerender = () => _renderBuilder(container, dbName).catch(() => {});
+  const sheet = document.createElement('div');
+  sheet.className = 'quiz-start-sheet-overlay';
+  sheet.innerHTML =
+    '<div class="quiz-start-sheet">' +
+      '<div class="quiz-start-sheet__handle"></div>' +
+      '<div class="quiz-start-sheet__title">Start a session</div>' +
+      '<div id="sheet-resume-slot"></div>' +
+      '<button class="quiz-start-sheet__btn quiz-start-sheet__btn--add"    id="sheet-add">+ Add from today\'s concepts</button>' +
+      '<button class="quiz-start-sheet__btn quiz-start-sheet__btn--search" id="sheet-search">\u2315 Search all concepts</button>' +
+    '</div>';
+
+  container.appendChild(sheet);
+
+  getSavedSession(dbName).then((saved) => {
+    if (!saved) return;
+    const slot  = sheet.querySelector('#sheet-resume-slot');
+    const names = (saved.session ?? []).slice(0, 3).join(' \u00b7 ');
+    const done  = saved.queuePos ?? 0;
+    const total = (saved.queue ?? []).length;
+    slot.innerHTML =
+      '<button class="quiz-start-sheet__btn quiz-start-sheet__btn--resume" id="sheet-resume">' +
+        '\u25b6 Resume saved session' +
+        '<span class="quiz-start-sheet__meta">' + _esc(names) + ' \u2014 ' + done + ' / ' + total + ' done</span>' +
+      '</button>';
+    sheet.querySelector('#sheet-resume')?.addEventListener('click', async () => {
+      sheet.remove();
+      _session = saved.session ?? []; _queue = saved.queue ?? [];
+      _queuePos = saved.queuePos ?? 0; _answers = saved.answers ?? [];
+      _mode = 'active';
+      setQuizActive(true);
+      _renderQuestion(container, dbName);
+    });
+  });
+
+  sheet.querySelector('#sheet-add').addEventListener('click', () => {
+    sheet.remove(); _mode = 'quiz'; rerender();
+  });
+  sheet.querySelector('#sheet-search').addEventListener('click', () => {
+    sheet.remove(); _mode = 'quiz';
+    renderSearch(container, _session, dbName, (updated) => {
+      _session = updated; rerender();
+    });
+  });
+  sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.remove(); });
+}
 
 async function _startSession(container, dbName) {
   const [content, progress] = await Promise.all([
@@ -255,29 +364,57 @@ async function _startSession(container, dbName) {
     const concept = _quizData.contentMap.get(conceptId);
     const prog    = _quizData.progressMap.get(conceptId);
     if (!concept) continue;
-    selectQuizQuestions(concept, prog).forEach(pick => _queue.push({ conceptId, ...pick }));
+    const hasWrong = prog?.wrong_answer_indices &&
+      Object.values(prog.wrong_answer_indices).some((arr) => arr.length > 0);
+    selectQuizQuestions(concept, prog, hasWrong)
+      .forEach((pick) => _queue.push({ conceptId, ...pick }));
   }
-  _view = 'quiz'; _queuePos = 0; _answers = [];
+  _mode = 'active'; _queuePos = 0; _answers = [];
+  setQuizActive(true);
   _renderQuestion(container, dbName);
 }
+
+// ── Active quiz ────────────────────────────────────────────────────────────
 
 function _advance(container, dbName) {
   _queuePos++;
   _renderQuestion(container, dbName);
 }
 
-function _handleExit(container, dbName) {
-  const remaining = _queue.length - _queuePos;
-  if (remaining > 0 && typeof confirm !== 'undefined' && !confirm('Exit quiz? Progress will be lost.')) return;
-  _view = 'builder'; _session = []; _queue = []; _queuePos = 0; _answers = []; _quizData = null;
-  _renderBuilder(container, dbName).catch((err) => {
-    container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+async function _handleExit(container, dbName) {
+  if (_queuePos >= _queue.length) { _cleanupSession(container, dbName); return; }
+  const dialog = document.createElement('div');
+  dialog.className = 'quiz-exit-dialog-overlay';
+  dialog.innerHTML =
+    '<div class="quiz-exit-dialog">' +
+      '<div class="quiz-exit-dialog__title">Leave this session?</div>' +
+      '<div class="quiz-exit-dialog__sub">You\'re ' + _queuePos + ' / ' + _queue.length + ' questions in.</div>' +
+      '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--save"   id="exit-save">\ud83d\udcbe Save &amp; exit</button>' +
+      '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--end"    id="exit-end">End session</button>' +
+      '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--cancel" id="exit-cancel">Cancel \u2014 stay in quiz</button>' +
+    '</div>';
+  container.appendChild(dialog);
+
+  dialog.querySelector('#exit-save').addEventListener('click', async () => {
+    dialog.remove();
+    await saveMidSession({ session: _session, queue: _queue, queuePos: _queuePos, answers: _answers }, dbName);
+    _cleanupSession(container, dbName);
   });
+  dialog.querySelector('#exit-end').addEventListener('click', () => {
+    dialog.remove(); _cleanupSession(container, dbName);
+  });
+  dialog.querySelector('#exit-cancel').addEventListener('click', () => dialog.remove());
+}
+
+function _cleanupSession(container, dbName) {
+  setQuizActive(false);
+  _mode = 'stats'; _session = []; _queue = []; _queuePos = 0; _answers = []; _quizData = null;
+  _renderBuilder(container, dbName).catch(() => {});
 }
 
 function _renderQuestion(container, dbName) {
   if (_queuePos >= _queue.length) {
-    _view = 'results';
+    _mode = 'results';
     _renderResults(container, dbName).catch((err) => {
       container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
     });
@@ -498,6 +635,14 @@ async function _renderResults(container, dbName) {
     session_id: Date.now().toString(), date: today,
     total_questions: totalQ, correct_count: totalC,
   }, dbName);
+  await deleteSavedSession(dbName);
+
+  for (const conceptId of [...new Set(_session)]) {
+    const conceptAnswers = _answers
+      .filter((a) => a.conceptId === conceptId)
+      .map(({ type, index, correct }) => ({ type, index, correct }));
+    if (conceptAnswers.length > 0) await applyWrongAnswers(conceptId, conceptAnswers, dbName);
+  }
 
   const rowsHtml = [...new Set(_session)].map(cid => {
     const c = _quizData?.contentMap.get(cid);
@@ -519,10 +664,7 @@ async function _renderResults(container, dbName) {
   const doneBtn = container.querySelector('#quiz-done');
   if (doneBtn) {
     doneBtn.addEventListener('click', () => {
-      _view = 'builder'; _session = []; _queue = []; _queuePos = 0; _answers = []; _quizData = null;
-      _renderBuilder(container, dbName).catch((err) => {
-        container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
-      });
+      _cleanupSession(container, dbName);
     });
   }
 }
