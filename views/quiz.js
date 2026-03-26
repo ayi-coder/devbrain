@@ -2,7 +2,7 @@ import {
   openDB, getSRSQueues, getAllContent, getAllUserProgress,
   applyQuizResult, saveQuizSession, getExploredToday,
   getWrongAnswerConcepts, getSavedSession, saveMidSession, deleteSavedSession,
-  applyWrongAnswers, getUpcomingReviews,
+  applyWrongAnswers,
 } from '../js/db.js';
 import { zoneColor, ZONE_NAMES, ZONE_ORDER } from '../js/zones.js';
 import { navigate, setQuizActive } from '../js/router.js';
@@ -107,12 +107,11 @@ export async function renderQuiz(container, params = {}, dbName = 'devbrain') {
 // ── Session builder ────────────────────────────────────────────────────────
 
 async function _renderBuilder(container, dbName) {
-  const [exploredToday, { recommended, overdue }, wrongConcepts, savedSession, upcomingReviews] = await Promise.all([
+  const [exploredToday, { recommended, overdue }, wrongConcepts, savedSession] = await Promise.all([
     getExploredToday(dbName),
     getSRSQueues(dbName),
     getWrongAnswerConcepts(dbName),
     getSavedSession(dbName),
-    getUpcomingReviews(dbName),
   ]);
 
   const inQuizMode = _mode === 'quiz';
@@ -219,85 +218,20 @@ async function _renderBuilder(container, dbName) {
       '</div>'
     : '';
 
-  // SRS Calendar
-  const calHtml = _buildCalendarHtml(upcomingReviews);
-
   const nameMap = new Map();
   for (const { content } of [...exploredToday, ...srItems, ...wrongConcepts]) {
     if (content) nameMap.set(content.id, content.name);
   }
 
-  // All calendar content is derived from date arithmetic + escaped counts — no user input
-  container.innerHTML = // nosec: all dynamic values are _esc'd or numeric
+  container.innerHTML =
     '<div class="quiz-builder-wrap">' +
-      searchHtml + resumeHtml + todayHtml + srHtml + wrongHtml + calHtml +
+      searchHtml + resumeHtml + todayHtml + srHtml + wrongHtml +
     '</div>' +
     _buildFooterHtml(nameMap);
 
   _attachBuilderListeners(container, dbName);
 }
 
-/**
- * Builds a 2-month SRS calendar showing upcoming review counts.
- * upcomingReviews: Map<YYYY-MM-DD, count>
- */
-function _buildCalendarHtml(upcomingReviews) {
-  if (upcomingReviews.size === 0) return '';
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
-
-  const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-  const MONTH_NAMES = ['January','February','March','April','May','June',
-                       'July','August','September','October','November','December'];
-
-  function buildMonth(year, month) {
-    const firstDay = new Date(year, month, 1);
-    const lastDay  = new Date(year, month + 1, 0);
-    const startDow = firstDay.getDay(); // 0=Sun
-
-    let html = '<div class="srs-cal-month">' +
-      '<div class="srs-cal-month__name">' + MONTH_NAMES[month] + ' ' + year + '</div>' +
-      '<div class="srs-cal-grid">';
-
-    // Day-of-week headers
-    for (const d of DAY_LABELS) html += '<div class="srs-cal-dow">' + d + '</div>';
-
-    // Empty cells before first day
-    for (let i = 0; i < startDow; i++) html += '<div class="srs-cal-cell srs-cal-cell--empty"></div>';
-
-    // Day cells
-    for (let day = 1; day <= lastDay.getDate(); day++) {
-      const dateStr = year + '-' +
-        String(month + 1).padStart(2, '0') + '-' +
-        String(day).padStart(2, '0');
-      const count = upcomingReviews.get(dateStr) ?? 0;
-      const isPast = dateStr < todayStr;
-      const isToday = dateStr === todayStr;
-      let cls = 'srs-cal-cell';
-      if (isPast)    cls += ' srs-cal-cell--past';
-      if (isToday)   cls += ' srs-cal-cell--today';
-      if (count > 0) cls += ' srs-cal-cell--has-reviews';
-      html += '<div class="' + cls + '">' +
-        '<span class="srs-cal-cell__day">' + day + '</span>' +
-        (count > 0 ? '<span class="srs-cal-cell__count">' + count + '</span>' : '') +
-      '</div>';
-    }
-
-    html += '</div></div>';
-    return html;
-  }
-
-  const m0 = today.getMonth(), y0 = today.getFullYear();
-  const m1 = (m0 + 1) % 12, y1 = m1 === 0 ? y0 + 1 : y0;
-
-  return '<div class="quiz-compartment quiz-compartment--calendar">' +
-    '<div class="quiz-compartment__label quiz-compartment__label--cal">UPCOMING REVIEWS</div>' +
-    buildMonth(y0, m0) +
-    buildMonth(y1, m1) +
-  '</div>';
-}
 
 function _buildFooterHtml(nameMap = new Map()) {
   if (_mode === 'stats') {
