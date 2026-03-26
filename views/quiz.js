@@ -209,9 +209,12 @@ async function _renderBuilder(container, dbName) {
   }
 
   const searchHtml = inQuizMode
-    ? '<div class="quiz-search-bar" id="quiz-search-bar">' +
-        '<span class="quiz-search-bar__icon">\u2315</span>' +
-        '<span class="quiz-search-bar__placeholder">Search all concepts...</span>' +
+    ? '<div class="quiz-mode-header">' +
+        '<button class="quiz-mode-header__back" id="quiz-mode-back">\u2190 Stats</button>' +
+        '<div class="quiz-search-bar" id="quiz-search-bar">' +
+          '<span class="quiz-search-bar__icon">\u2315</span>' +
+          '<span class="quiz-search-bar__placeholder">Search all concepts...</span>' +
+        '</div>' +
       '</div>'
     : '';
 
@@ -257,6 +260,9 @@ function _attachBuilderListeners(container, dbName) {
   const rerender = () => _renderBuilder(container, dbName).catch((err) => {
     container.innerHTML = '<p style="padding:20px;color:var(--red)">' + _esc(err.message) + '</p>';
   });
+
+  container.querySelector('#quiz-mode-back')
+    ?.addEventListener('click', () => { _mode = 'stats'; _session = []; rerender(); });
 
   container.querySelector('#quiz-mode-enter')
     ?.addEventListener('click', () => _showStartSheet(container, dbName));

@@ -133,8 +133,8 @@ body {
   animation: view-enter var(--dur-md) var(--ease-out) both;
 }
 @keyframes view-enter {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: none;             }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 #view-curriculum,
 #view-quiz {
@@ -1782,6 +1782,9 @@ body {
 .quiz-chip__remove { font-size: 14px; color: var(--fg3); background: none; border: none; padding: 0 2px; cursor: pointer; }
 
 /* ── Search bar (quiz mode) ─────────────────────────────────── */
+.quiz-mode-header { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+.quiz-mode-header__back { font-size: 13px; font-weight: 600; color: var(--accent); background: none; border: none; padding: 4px 0; white-space: nowrap; flex-shrink: 0; }
+.quiz-mode-header .quiz-search-bar { flex: 1; margin-bottom: 0; }
 .quiz-search-bar { display: flex; align-items: center; gap: 8px; background: var(--bg2); border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; cursor: pointer; }
 .quiz-search-bar__icon { color: #56b6c2; font-size: 15px; }
 .quiz-search-bar__placeholder { font-size: 13px; color: var(--fg3); flex: 1; }
