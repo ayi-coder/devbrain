@@ -256,9 +256,11 @@ async function _renderBuilder(container, dbName) {
   }
 
   container.innerHTML =
-    tabHeaderHtml +
-    '<div class="quiz-builder-wrap">' +
-      searchHtml + emptyHtml + resumeHtml + todayHtml + srHtml + wrongHtml +
+    '<div class="quiz-scroll-area">' +
+      tabHeaderHtml +
+      '<div class="quiz-builder-wrap">' +
+        searchHtml + emptyHtml + resumeHtml + todayHtml + srHtml + wrongHtml +
+      '</div>' +
     '</div>' +
     _buildFooterHtml(nameMap);
 
