@@ -214,16 +214,21 @@ async function _renderBuilder(container, dbName) {
       '</div>'
     : '';
 
+  const nameMap = new Map();
+  for (const { content } of [...exploredToday, ...srItems, ...wrongConcepts]) {
+    if (content) nameMap.set(content.id, content.name);
+  }
+
   container.innerHTML =
     '<div class="quiz-builder-wrap">' +
       searchHtml + resumeHtml + todayHtml + srHtml + wrongHtml +
     '</div>' +
-    _buildFooterHtml();
+    _buildFooterHtml(nameMap);
 
   _attachBuilderListeners(container, dbName);
 }
 
-function _buildFooterHtml() {
+function _buildFooterHtml(nameMap = new Map()) {
   if (_mode === 'stats') {
     return '<div class="quiz-footer quiz-footer--stats">' +
       '<span class="quiz-footer__hint">Nothing selected</span>' +
@@ -237,7 +242,7 @@ function _buildFooterHtml() {
   }
   const chips = _session.map((id) =>
     '<div class="quiz-chip">' +
-      '<span class="quiz-chip__name">' + _esc(id) + '</span>' +
+      '<span class="quiz-chip__name">' + _esc(nameMap.get(id) ?? id) + '</span>' +
       '<button class="quiz-chip__remove" data-remove="' + _esc(id) + '">\u00d7</button>' +
     '</div>',
   ).join('');
@@ -261,6 +266,11 @@ function _attachBuilderListeners(container, dbName) {
       if (!saved) return;
       _session = saved.session ?? []; _queue = saved.queue ?? [];
       _queuePos = saved.queuePos ?? 0; _answers = saved.answers ?? [];
+      const [content, prog] = await Promise.all([getAllContent(dbName), getAllUserProgress(dbName)]);
+      _quizData = {
+        contentMap:  new Map(content.map(c  => [c.id, c])),
+        progressMap: new Map(prog.map(p => [p.id, p])),
+      };
       _mode = 'active';
       setQuizActive(true);
       _renderQuestion(container, dbName);
@@ -332,6 +342,11 @@ function _showStartSheet(container, dbName) {
       sheet.remove();
       _session = saved.session ?? []; _queue = saved.queue ?? [];
       _queuePos = saved.queuePos ?? 0; _answers = saved.answers ?? [];
+      const [content, prog] = await Promise.all([getAllContent(dbName), getAllUserProgress(dbName)]);
+      _quizData = {
+        contentMap:  new Map(content.map(c  => [c.id, c])),
+        progressMap: new Map(prog.map(p => [p.id, p])),
+      };
       _mode = 'active';
       setQuizActive(true);
       _renderQuestion(container, dbName);
@@ -504,6 +519,10 @@ function _renderMCQuestion(container, item, dbName, headerHtml) {
 
 function _renderAnatomyQuestion(container, item, dbName, headerHtml) {
   const q = item.question;
+  if (!q.tokens || q.tokens.length === 0) {
+    _advance(container, dbName);
+    return;
+  }
   const tokensHtml = (q.tokens ?? [])
     .map((tok, i) => '<span class="quiz-token" data-token="' + i + '">' + _esc(tok.text) + '</span>')
     .join('');
