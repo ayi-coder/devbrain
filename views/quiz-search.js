@@ -151,13 +151,18 @@ function _showUnseenPopup(conceptId, allContent, dbName, progressMap, onAdd) {
     const inner = document.createElement('div');
     inner.className = 'qs-unseen-popup';
 
-    const dotEl = document.createElement('div');
-    dotEl.className = 'qs-unseen-popup__dot';
-    dotEl.style.background = zoneColor(concept.zone);
+    const color    = zoneColor(concept.zone);
+    const zoneName = ZONE_NAMES[concept.zone] ?? concept.zone;
 
     const nameEl = document.createElement('div');
     nameEl.className = 'qs-unseen-popup__name';
+    nameEl.style.color = color;
     nameEl.textContent = concept.name;
+
+    const zoneTagEl = document.createElement('span');
+    zoneTagEl.className = 'qs-unseen-popup__zone-tag';
+    zoneTagEl.style.background = color;
+    zoneTagEl.textContent = zoneName;
 
     const msgEl = document.createElement('div');
     msgEl.className = 'qs-unseen-popup__msg';
@@ -181,8 +186,8 @@ function _showUnseenPopup(conceptId, allContent, dbName, progressMap, onAdd) {
     handleEl.className = 'qs-unseen-popup__handle';
 
     inner.appendChild(handleEl);
-    inner.appendChild(dotEl);
     inner.appendChild(nameEl);
+    inner.appendChild(zoneTagEl);
     inner.appendChild(msgEl);
     inner.appendChild(cardBtn);
     inner.appendChild(addBtn);
