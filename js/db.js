@@ -1,6 +1,6 @@
 import { ZONE_ORDER } from './zones.js';
 
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const DB_NAME_PROD = 'devbrain';
 
 // Per-name connection cache. Tests pass unique names; production uses DB_NAME_PROD.
@@ -46,6 +46,23 @@ export async function openDB(name = DB_NAME_PROD) {
           }
         };
       }
+
+      // v3: saved_session store + migrate user-progress with new fields
+      if (!db.objectStoreNames.contains('saved_session')) {
+        db.createObjectStore('saved_session', { keyPath: 'id' });
+      }
+      if (event.oldVersion < 3 && db.objectStoreNames.contains('user-progress')) {
+        const store = tx.objectStore('user-progress');
+        store.getAll().onsuccess = (e) => {
+          for (const record of e.target.result) {
+            if (record.last_seen_at === undefined)
+              record.last_seen_at = null;
+            if (record.wrong_answer_indices === undefined)
+              record.wrong_answer_indices = { definition: [], usage: [], anatomy: [], build: [] };
+            store.put(record);
+          }
+        };
+      }
     };
 
     request.onsuccess = (event) => {
@@ -79,6 +96,8 @@ function _migrateProgressRecord(old) {
     t3_unlocked: false,
     check_completed: false,
     check_used_indices: { definition: [] },
+    last_seen_at: null,
+    wrong_answer_indices: { definition: [], usage: [], anatomy: [], build: [] },
   };
 }
 
@@ -191,8 +210,12 @@ export async function upsertUserProgress(data, dbName = DB_NAME_PROD) {
 
 export async function markSeen(id, dbName = DB_NAME_PROD) {
   const existing = await getUserProgress(id, dbName);
-  if (!existing || existing.seen) return;
-  await upsertUserProgress({ ...existing, seen: true }, dbName);
+  if (!existing) return;
+  await upsertUserProgress({
+    ...existing,
+    seen: true,
+    last_seen_at: new Date().toISOString(),
+  }, dbName);
 }
 
 export async function saveCheckCompletion(conceptId, usedIndices, dbName = DB_NAME_PROD) {
@@ -387,7 +410,7 @@ export async function applyQuizResult(conceptId, isCorrect, qType, qIndex, dbNam
 
 // ── Session history (unchanged API from v1) ────────────────────────────────
 
-export async function saveSession(sessionData, dbName = DB_NAME_PROD) {
+export async function saveQuizSession(sessionData, dbName = DB_NAME_PROD) {
   const db = getDB(dbName);
   return new Promise((resolve, reject) => {
     const tx = db.transaction('quiz_sessions', 'readwrite');
@@ -426,6 +449,91 @@ export async function getRecentSessions(n = 5, dbName = DB_NAME_PROD) {
       all.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
       resolve(all.slice(0, n));
     };
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ── Explored Today ──────────────────────────────────────────────────────────
+
+export async function getExploredToday(dbName = DB_NAME_PROD) {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const [allContent, allProgress] = await Promise.all([
+    getAllContent(dbName),
+    getAllUserProgress(dbName),
+  ]);
+  const contentMap = new Map(allContent.map((c) => [c.id, c]));
+  return allProgress
+    .filter((p) => p.last_seen_at && p.last_seen_at > cutoff)
+    .map((p) => ({ content: contentMap.get(p.id), progress: p }))
+    .filter((item) => item.content);
+}
+
+// ── Wrong answer concepts ───────────────────────────────────────────────────
+
+export async function getWrongAnswerConcepts(dbName = DB_NAME_PROD) {
+  const [allContent, allProgress] = await Promise.all([
+    getAllContent(dbName),
+    getAllUserProgress(dbName),
+  ]);
+  const contentMap = new Map(allContent.map((c) => [c.id, c]));
+  return allProgress
+    .filter((p) => {
+      const w = p.wrong_answer_indices;
+      return w && Object.values(w).some((arr) => arr.length > 0);
+    })
+    .map((p) => ({ content: contentMap.get(p.id), progress: p }))
+    .filter((item) => item.content);
+}
+
+// ── Wrong answer update ─────────────────────────────────────────────────────
+
+export async function applyWrongAnswers(conceptId, answers, dbName = DB_NAME_PROD) {
+  const existing = await getUserProgress(conceptId, dbName);
+  if (!existing) return;
+  const wrong = {
+    definition: [...(existing.wrong_answer_indices?.definition ?? [])],
+    usage:      [...(existing.wrong_answer_indices?.usage      ?? [])],
+    anatomy:    [...(existing.wrong_answer_indices?.anatomy    ?? [])],
+    build:      [...(existing.wrong_answer_indices?.build      ?? [])],
+  };
+  for (const { type, index, correct } of answers) {
+    if (!wrong[type]) wrong[type] = [];
+    if (correct) {
+      wrong[type] = wrong[type].filter((i) => i !== index);
+    } else if (!wrong[type].includes(index)) {
+      wrong[type].push(index);
+    }
+  }
+  await upsertUserProgress({ ...existing, wrong_answer_indices: wrong }, dbName);
+}
+
+// ── Saved mid-session ───────────────────────────────────────────────────────
+
+export async function getSavedSession(dbName = DB_NAME_PROD) {
+  const db = getDB(dbName);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('saved_session', 'readonly');
+    tx.objectStore('saved_session').get(1).onsuccess = (e) =>
+      resolve(e.target.result ?? null);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function saveMidSession(data, dbName = DB_NAME_PROD) {
+  const db = getDB(dbName);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('saved_session', 'readwrite');
+    const req = tx.objectStore('saved_session').put({ id: 1, ...data });
+    req.onsuccess = () => resolve(req.result);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function deleteSavedSession(dbName = DB_NAME_PROD) {
+  const db = getDB(dbName);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('saved_session', 'readwrite');
+    tx.objectStore('saved_session').delete(1).onsuccess = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }

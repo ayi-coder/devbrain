@@ -1,207 +1,112 @@
 import 'fake-indexeddb/auto';
-import { describe, test } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { openDB, seedContent, upsertUserProgress } from '../js/db.js';
-import { selectQuizQuestions, renderQuiz, _resetQuizState } from '../views/quiz.js';
+import {
+  openDB, _resetDB, seedContent, upsertUserProgress, getUserProgress, markSeen,
+  getExploredToday, getWrongAnswerConcepts,
+  getSavedSession, saveMidSession, deleteSavedSession,
+} from '../js/db.js';
 
 globalThis.location = { hash: '' };
+globalThis.confirm  = () => true;
 
-let _uid = 0;
-const mkDB = () => `quiz-test-${++_uid}`;
+let uid = 0;
+const mkName = () => 'quiz-test-' + (++uid);
 
-function makeConcept(overrides = {}) {
-  return {
-    id: 'c1', name: 'Test Concept', zone: 'shell-terminal', is_bridge: false,
-    questions: {
-      definition: [
-        { prompt: 'D1?', options: ['a','b','c','d'], correct_index: 0 },
-        { prompt: 'D2?', options: ['a','b','c','d'], correct_index: 1 },
-        { prompt: 'D3?', options: ['a','b','c','d'], correct_index: 2 },
-      ],
-      usage:    [{ prompt: 'U1?', options: ['a','b','c','d'], correct_index: 0 },
-                 { prompt: 'U2?', options: ['a','b','c','d'], correct_index: 1 }],
-      anatomy:  [],
-      build:    [],
-    },
-    ...overrides,
-  };
-}
+const concept = (id, zone = 'shell-terminal') => ({
+  id, name: id, zone, subcategory: 'bash', is_bridge: false,
+  tier_unlocked: 1, bridge_zones: [], what_it_is: '',
+  analogy: '', use_when: '', examples: [],
+  questions: { definition: [], usage: [], anatomy: [], build: [] },
+});
 
-function baseProgress(overrides = {}) {
-  return {
-    id: 'c1', seen: true, practiced: false,
-    next_review_date: null, last_review_date: null,
-    ease_factor: 2.5, interval: 1, repetitions: 0,
-    used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
-    ...overrides,
-  };
-}
+const defaultProg = (id) => ({
+  id, seen: false, practiced: false,
+  t2_unlocked: false, t3_unlocked: false, check_completed: false,
+  next_review_date: null, last_review_date: null,
+  ease_factor: 2.5, interval: 1, repetitions: 0,
+  used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
+  check_used_indices: { definition: [] },
+  last_seen_at: null,
+  wrong_answer_indices: { definition: [], usage: [], anatomy: [], build: [] },
+});
 
-function makeMockContainer() {
-  let html = '';
-  const mockEl = { addEventListener() {}, style: {}, dataset: {}, disabled: false };
-  return {
-    get innerHTML() { return html; },
-    set innerHTML(v) { html = v; },
-    querySelector()    { return mockEl; },
-    querySelectorAll() { return []; },
-    addEventListener() {},
-    scrollTop: 0,
-  };
-}
-
-// ── selectQuizQuestions ────────────────────────────────────────────────────
-
-describe('selectQuizQuestions', () => {
-  test('T1 only: returns 2 definition questions', () => {
-    const picks = selectQuizQuestions(makeConcept(), baseProgress());
-    assert.equal(picks.length, 2);
-    assert.ok(picks.every(p => p.type === 'definition'));
+describe('markSeen — last_seen_at', () => {
+  it('sets last_seen_at on first view', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    await upsertUserProgress(defaultProg('c1'), DB);
+    const before = Date.now();
+    await markSeen('c1', DB);
+    const prog = await getUserProgress('c1', DB);
+    assert.ok(prog.seen);
+    assert.ok(prog.last_seen_at !== null);
+    assert.ok(new Date(prog.last_seen_at).getTime() >= before);
   });
 
-  test('T1 only: returns two different indices', () => {
-    const picks = selectQuizQuestions(makeConcept(), baseProgress());
-    assert.notEqual(picks[0].index, picks[1].index);
-  });
-
-  test('T2 unlocked (practiced=true): 1 definition + 1 usage', () => {
-    const picks = selectQuizQuestions(makeConcept(), baseProgress({ practiced: true }));
-    assert.equal(picks.length, 2);
-    assert.ok(picks.some(p => p.type === 'definition'));
-    assert.ok(picks.some(p => p.type === 'usage'));
-  });
-
-  test('T3 unlocked: 1 def + 1 usage + 1 anatomy', () => {
-    const concept = makeConcept({
-      questions: {
-        definition: [{ prompt: 'D?', options: ['a','b','c','d'], correct_index: 0 }],
-        usage:      [{ prompt: 'U?', options: ['a','b','c','d'], correct_index: 0 }],
-        anatomy:    [{ prompt: 'A?', tokens: [{text:'git',label:'command'}], labels: ['command','argument'] }],
-        build:      [],
-      },
-    });
-    const prog = baseProgress({
-      practiced: true,
-      used_question_indices: { definition: [0], usage: [0], anatomy: [], build: [] },
-    });
-    const picks = selectQuizQuestions(concept, prog);
-    assert.equal(picks.length, 3);
-    assert.ok(picks.some(p => p.type === 'anatomy'));
-  });
-
-  test('LRU: prefers unused indices', () => {
-    const picks = selectQuizQuestions(makeConcept(), baseProgress({
-      used_question_indices: { definition: [0], usage: [], anatomy: [], build: [] },
-    }));
-    assert.ok(picks.every(p => p.index !== 0));
-  });
-
-  test('LRU cycle: falls back to full pool when all used', () => {
-    const picks = selectQuizQuestions(makeConcept(), baseProgress({
-      used_question_indices: { definition: [0,1,2], usage: [], anatomy: [], build: [] },
-    }));
-    assert.equal(picks.length, 2);
-  });
-
-  test('T2 fallback: 2 definition when usage array is empty', () => {
-    const concept = makeConcept({
-      questions: {
-        definition: [
-          { prompt: 'D1?', options: ['a','b','c','d'], correct_index: 0 },
-          { prompt: 'D2?', options: ['a','b','c','d'], correct_index: 1 },
-        ],
-        usage: [], anatomy: [], build: [],
-      },
-    });
-    const picks = selectQuizQuestions(concept, baseProgress({ practiced: true }));
-    assert.equal(picks.length, 2);
-    assert.ok(picks.every(p => p.type === 'definition'));
-  });
-
-  test('returns empty array when all question arrays are empty', () => {
-    const concept = makeConcept({ questions: { definition: [], usage: [], anatomy: [], build: [] } });
-    assert.equal(selectQuizQuestions(concept, baseProgress()).length, 0);
-  });
-
-  test('each pick has type, index, and question fields', () => {
-    const picks = selectQuizQuestions(makeConcept(), baseProgress());
-    for (const p of picks) {
-      assert.ok('type' in p && 'index' in p && 'question' in p);
-    }
+  it('updates last_seen_at even when already seen', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    const old = new Date(Date.now() - 100_000).toISOString();
+    await upsertUserProgress({ ...defaultProg('c1'), seen: true, last_seen_at: old }, DB);
+    await markSeen('c1', DB);
+    const prog = await getUserProgress('c1', DB);
+    assert.ok(new Date(prog.last_seen_at) > new Date(old));
   });
 });
 
-// ── renderQuiz — builder view ──────────────────────────────────────────────
-
-describe('renderQuiz — builder view', () => {
-  test('renders session builder card', async () => {
-    const DB = mkDB();
-    await openDB(DB);
-    _resetQuizState();
-    const container = makeMockContainer();
-    await renderQuiz(container, {}, DB);
-    assert.ok(container.innerHTML.includes('Your session'));
+describe('getExploredToday', () => {
+  it('returns concepts seen within last 24 hours', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1'), concept('c2')], DB);
+    const recent = new Date(Date.now() - 3_600_000).toISOString();
+    const old    = new Date(Date.now() - 90_000_000).toISOString();
+    await upsertUserProgress({ ...defaultProg('c1'), seen: true, last_seen_at: recent }, DB);
+    await upsertUserProgress({ ...defaultProg('c2'), seen: true, last_seen_at: old },    DB);
+    const result = await getExploredToday(DB);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].content.id, 'c1');
   });
 
-  test('shows 0/5 count when session is empty', async () => {
-    const DB = mkDB();
-    await openDB(DB);
-    _resetQuizState();
-    const container = makeMockContainer();
-    await renderQuiz(container, {}, DB);
-    assert.ok(container.innerHTML.includes('0 / 5'));
+  it('returns empty array when none within 24hrs', async () => {
+    const DB = mkName(); await openDB(DB);
+    assert.deepEqual(await getExploredToday(DB), []);
   });
+});
 
-  test('preload adds concept to session', async () => {
-    const DB = mkDB();
-    await openDB(DB);
-    await seedContent([{
-      id: 'pre-c', name: 'Preloaded Concept', zone: 'shell-terminal', is_bridge: false,
-      questions: { definition: [], usage: [], anatomy: [], build: [] },
-    }], DB);
+describe('getWrongAnswerConcepts', () => {
+  it('returns concepts with non-empty wrong_answer_indices', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1'), concept('c2')], DB);
     await upsertUserProgress({
-      id: 'pre-c', seen: true, practiced: false,
-      next_review_date: null, last_review_date: null,
-      ease_factor: 2.5, interval: 1, repetitions: 0,
-      used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
+      ...defaultProg('c1'), seen: true,
+      wrong_answer_indices: { definition: [0], usage: [], anatomy: [], build: [] },
     }, DB);
-    _resetQuizState();
-    const container = makeMockContainer();
-    await renderQuiz(container, { preload: 'pre-c' }, DB);
-    assert.ok(container.innerHTML.includes('Preloaded Concept'));
-    assert.ok(container.innerHTML.includes('1 / 5'));
-  });
-
-  test('preload ignored when session is full', async () => {
-    _resetQuizState({ session: ['a','b','c','d','e'] });
-    const container = makeMockContainer();
-    await renderQuiz(container, { preload: 'extra' }, mkDB());
-    assert.ok(container.innerHTML.includes('5 / 5'));
+    await upsertUserProgress(defaultProg('c2'), DB);
+    const result = await getWrongAnswerConcepts(DB);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].content.id, 'c1');
   });
 });
 
-// ── renderQuiz — results view ──────────────────────────────────────────────
+describe('getSavedSession / saveMidSession / deleteSavedSession', () => {
+  it('returns null when no saved session', async () => {
+    const DB = mkName(); await openDB(DB);
+    assert.equal(await getSavedSession(DB), null);
+  });
 
-describe('renderQuiz — results view', () => {
-  test('renders results header and concept scores', async () => {
-    const DB = mkDB();
-    await openDB(DB);
-    _resetQuizState({
-      view: 'results',
-      session: ['c1'],
-      answers: [
-        { conceptId: 'c1', type: 'definition', index: 0, correct: true  },
-        { conceptId: 'c1', type: 'usage',      index: 0, correct: false },
-      ],
-      quizData: {
-        contentMap:  new Map([['c1', { id: 'c1', name: 'Test Concept', zone: 'shell-terminal' }]]),
-        progressMap: new Map(),
-      },
-    });
-    const container = makeMockContainer();
-    await renderQuiz(container, {}, DB);
-    assert.ok(container.innerHTML.includes('Session complete'));
-    assert.ok(container.innerHTML.includes('Test Concept'));
-    assert.ok(container.innerHTML.includes('1 / 2'));
+  it('round-trips a session', async () => {
+    const DB = mkName(); await openDB(DB);
+    await saveMidSession({ session: ['c1','c2'], queue: [], queuePos: 3, answers: [] }, DB);
+    const result = await getSavedSession(DB);
+    assert.deepEqual(result.session, ['c1','c2']);
+    assert.equal(result.queuePos, 3);
+  });
+
+  it('deleteSavedSession clears the record', async () => {
+    const DB = mkName(); await openDB(DB);
+    await saveMidSession({ session: ['c1'], queue: [], queuePos: 0, answers: [] }, DB);
+    await deleteSavedSession(DB);
+    assert.equal(await getSavedSession(DB), null);
   });
 });

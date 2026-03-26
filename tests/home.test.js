@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { openDB, _resetDB, seedContent, upsertUserProgress, saveSession } from '../js/db.js';
+import { openDB, _resetDB, seedContent, upsertUserProgress, saveQuizSession } from '../js/db.js';
 import { renderHome } from '../views/home.js';
 
 // Stub location so navigate() calls in renderHome don't throw in Node.js
@@ -121,7 +121,7 @@ describe('renderHome', () => {
       used_question_indices: { definition: [], usage: [], anatomy: [], build: [] },
     }, dbName);
     // 80% correct -- should be green (#98c379)
-    await saveSession({ session_id: 's1', date: '2026-03-24', total_questions: 5, correct_count: 4 }, dbName);
+    await saveQuizSession({ session_id: 's1', date: '2026-03-24', total_questions: 5, correct_count: 4 }, dbName);
 
     const container = makeMockContainer();
     await renderHome(container, {}, dbName);

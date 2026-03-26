@@ -1,5 +1,5 @@
 import { openDB, getSRSQueues, getAllContent, getAllUserProgress,
-         applyQuizResult, saveSession } from '../js/db.js';
+         applyQuizResult, saveQuizSession } from '../js/db.js';
 import { zoneColor, ZONE_NAMES } from '../js/zones.js';
 import { navigate } from '../js/router.js';
 
@@ -494,7 +494,7 @@ async function _renderResults(container, dbName) {
   const totalQ = _answers.length;
   const totalC = _answers.filter(a => a.correct).length;
 
-  await saveSession({
+  await saveQuizSession({
     session_id: Date.now().toString(), date: today,
     total_questions: totalQ, correct_count: totalC,
   }, dbName);
