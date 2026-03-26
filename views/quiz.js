@@ -156,7 +156,7 @@ async function _renderBuilder(container, dbName) {
         '</div>' +
         '<div class="quiz-empty-state__title">Quiz yourself</div>' +
         '<div class="quiz-empty-state__body">Explore concepts on the Learn tab, then come back here to test what you know.</div>' +
-        '<button class="quiz-empty-state__cta" id="quiz-empty-cta">Explore concepts \u2192</button>' +
+        '<button class="quiz-empty-state__cta" id="quiz-empty-cta">Explore concepts \u2192</button>'  +
       '</div>'
     : '';
 
@@ -267,11 +267,7 @@ async function _renderBuilder(container, dbName) {
 
 
 function _buildFooterHtml(nameMap = new Map()) {
-  if (_mode === 'stats') {
-    return '<div class="quiz-footer quiz-footer--stats">' +
-      '<button class="quiz-footer__quiz-btn" id="quiz-mode-enter">Start a Quiz Session</button>' +
-    '</div>';
-  }
+  if (_mode === 'stats') return '';
   if (_session.length === 0) {
     return '<div class="quiz-footer quiz-footer--quiz-empty">' +
       '<span class="quiz-footer__hint">Tap + or search to add concepts</span>' +
@@ -297,9 +293,6 @@ function _attachBuilderListeners(container, dbName) {
   container.querySelector('#quiz-mode-back')
     ?.addEventListener('click', () => { _mode = 'stats'; _session = []; rerender(); });
 
-  container.querySelector('#quiz-mode-enter')
-    ?.addEventListener('click', () => _showStartSheet(container, dbName));
-
   container.querySelector('#quiz-resume-continue')
     ?.addEventListener('click', async () => {
       const saved = await getSavedSession(dbName);
@@ -323,7 +316,7 @@ function _attachBuilderListeners(container, dbName) {
     });
 
   container.querySelector('#quiz-empty-cta')
-    ?.addEventListener('click', () => navigate('#curriculum'));
+    ?.addEventListener('click', () => navigate('explore'));
 
   container.querySelectorAll('[data-add]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -502,17 +495,9 @@ function _renderQuestion(container, dbName) {
   const item    = _queue[_queuePos];
   const pct     = Math.round((_queuePos / _queue.length) * 100);
 
-  const stripHtml = [...new Set(_session)].map(cid => {
-    const c      = _quizData.contentMap.get(cid);
-    const color  = zoneColor(c?.zone);
-    const isDone = cid !== item.conceptId &&
-      _queue.filter(q => q.conceptId === cid)
-            .every(q => _answers.some(a => a.conceptId === cid && a.type === q.type && a.index === q.index));
-    const isCurr = cid === item.conceptId;
-    const cls    = isCurr ? ' quiz-concept-pill--current' : isDone ? ' quiz-concept-pill--done' : '';
-    const style  = isCurr ? ' style="color:' + color + ';border-color:' + color + '"' : '';
-    return '<span class="quiz-concept-pill' + cls + '"' + style + '>' + _esc(c?.name ?? cid) + '</span>';
-  }).join('');
+  const currConcept = _quizData.contentMap.get(item.conceptId);
+  const currColor   = zoneColor(currConcept?.zone);
+  const currZone    = ZONE_NAMES[currConcept?.zone] ?? currConcept?.zone ?? '';
 
   const headerHtml =
     '<div class="quiz-progress">' +
@@ -523,8 +508,11 @@ function _renderQuestion(container, dbName) {
         '</div>' +
         '<span class="quiz-progress__label">' + (_queuePos + 1) + ' / ' + _queue.length + '</span>' +
       '</div>' +
-    '</div>' +
-    '<div class="quiz-concept-strip">' + stripHtml + '</div>';
+      '<div class="quiz-concept-indicator">' +
+        '<span class="quiz-concept-indicator__zone" style="background:' + currColor + '">' + _esc(currZone) + '</span>' +
+        '<span class="quiz-concept-indicator__name" style="color:' + currColor + '">' + _esc(currConcept?.name ?? '') + '</span>' +
+      '</div>' +
+    '</div>';
 
   if (item.type === 'anatomy')        _renderAnatomyQuestion(container, item, dbName, headerHtml);
   else if (item.type === 'build')     _renderBuildQuestion(container, item, dbName, headerHtml);
