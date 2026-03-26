@@ -3,7 +3,6 @@ import { loadCurriculum } from './curriculum-loader.js';
 import { initRouter } from './router.js';
 import { renderHome } from '../views/home.js';
 import { renderCurriculum } from '../views/curriculum.js';
-import { renderMap } from '../views/map.js';
 import { renderQuiz } from '../views/quiz.js';
 
 if ('serviceWorker' in navigator) {
@@ -17,7 +16,6 @@ async function init() {
   initRouter({
     home:       (params) => renderHome(document.getElementById('view-home'), params),
     curriculum: (params) => renderCurriculum(document.getElementById('view-curriculum'), params),
-    map:        (params) => renderMap(document.getElementById('view-map'), params),
     quiz:       (params) => renderQuiz(document.getElementById('view-quiz'), params),
   });
 }

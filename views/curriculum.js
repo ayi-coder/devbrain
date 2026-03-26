@@ -1,5 +1,5 @@
 import { getCurriculumData, markSeen, getUserProgress, saveCheckCompletion } from '../js/db.js';
-import { zoneColor, ZONE_NAMES, subcatName } from '../js/zones.js';
+import { zoneColor, ZONE_NAMES, subcatName, SUBCAT_DESCRIPTIONS, GROUP_ORDER } from '../js/zones.js';
 import { navigate } from '../js/router.js';
 
 /** Escapes HTML special characters for safe innerHTML insertion. */
@@ -12,12 +12,12 @@ function _esc(str) {
 }
 
 // ── Module-level navigation state ─────────────────────────────────────
-// Persists across tab switches. Reset via _resetCurriculumState() in tests.
-let _openZones = new Set(); // zone IDs with expanded accordion rows
-let _navStack = [];         // push entries: {type:'concepts',...} | {type:'lesson',...}
-let _scrollY = 0;           // zones-view scroll position, saved before navigating away
+let _openZones   = new Set(); // zone IDs with expanded accordion
+let _openSubcats = new Set(); // subcat IDs with expanded content
+let _openGroups  = new Set(); // "subcatId:groupName" keys with expanded content
+let _navStack    = [];        // push entries: {type:'lesson',...}
+let _scrollY     = 0;         // zones-view scroll position
 
-/** Triggers a slide-in animation on the container for navigation transitions. */
 function _animateIn(el) {
   if (!el.classList) return;
   el.classList.remove('nav-animate-in');
@@ -25,20 +25,17 @@ function _animateIn(el) {
   el.classList.add('nav-animate-in');
 }
 
-/** TEST USE ONLY — reset navigation state between tests. */
+/** TEST USE ONLY */
 export function _resetCurriculumState(state = {}) {
-  _openZones = new Set(state.openZones ?? []);
-  _navStack = state.navStack ? [...state.navStack] : [];
-  _scrollY = 0;
+  _openZones   = new Set(state.openZones ?? []);
+  _openSubcats = new Set(state.openSubcats ?? []);
+  _openGroups  = new Set(state.openGroups ?? []);
+  _navStack    = state.navStack ? [...state.navStack] : [];
+  _scrollY     = 0;
 }
 
 // ── Exported pure functions ────────────────────────────────────────────
 
-/**
- * Parses [display text](concept-id) link syntax into an array of segments.
- * String segments are plain text; object segments are { text, conceptId }.
- * Exported for testing.
- */
 export function parseLinks(text) {
   const result = [];
   let last = 0;
@@ -51,11 +48,6 @@ export function parseLinks(text) {
   return result;
 }
 
-/**
- * Returns the display status for a concept: 'locked' | 'new' | 'due' | 'done'
- * today: ISO date string YYYY-MM-DD; defaults to today if omitted.
- * Exported for testing.
- */
 export function conceptStatus(progress, today) {
   if (!today) today = new Date().toISOString().slice(0, 10);
   if (!progress || !progress.seen) return 'locked';
@@ -65,17 +57,18 @@ export function conceptStatus(progress, today) {
 }
 
 /**
- * Selects up to 3 definition questions using LRU logic.
- * Prefers unused indices; cycles from full pool when all are used.
- * Exported for testing.
+ * Selects up to 3 questions where for_check === true, across all question types.
+ * Returns [{ type, index, question }, ...]
  */
-export function _selectCheckQuestions(concept, progress) {
-  const defs = concept.questions?.definition ?? [];
-  const usedIndices = progress?.check_used_indices?.definition ?? [];
-  const unused = defs.map((_, i) => i).filter((i) => !usedIndices.includes(i));
-  const fill = defs.map((_, i) => i).filter((i) => !unused.includes(i));
-  const pool = [...unused, ...fill];
-  return pool.slice(0, 3).map((i) => ({ index: i, question: defs[i] }));
+export function _selectCheckQuestions(concept) {
+  const result = [];
+  for (const type of ['definition', 'usage', 'anatomy', 'build']) {
+    const arr = concept.questions?.[type] ?? [];
+    arr.forEach((q, i) => {
+      if (q.for_check) result.push({ type, index: i, question: q });
+    });
+  }
+  return result.slice(0, 3);
 }
 
 // ── Entry point ────────────────────────────────────────────────────────
@@ -85,20 +78,16 @@ export async function renderCurriculum(container, params = {}, dbName = 'devbrai
   await _render(container, data, dbName);
 }
 
-// ── Internal render dispatcher ─────────────────────────────────────────
-
 async function _render(container, data, dbName) {
   const top = _navStack[_navStack.length - 1];
   if (!top) {
     _renderZones(container, data, dbName);
-  } else if (top.type === 'concepts') {
-    _renderConceptList(container, data, top, dbName);
   } else if (top.type === 'lesson') {
     await _renderLesson(container, data, top, dbName);
   }
 }
 
-// ── Level 1/2: zone accordion + subcategory list ───────────────────────
+// ── Level 1: zone accordion ────────────────────────────────────────────
 
 function _renderZones(container, data, dbName) {
   const total = data.totalConcepts;
@@ -106,14 +95,16 @@ function _renderZones(container, data, dbName) {
   let html =
     '<div class="curriculum-header">' +
       '<div class="curriculum-header__title">Curriculum</div>' +
-      '<div class="curriculum-header__subtitle">' + data.zones.length + ' zones \u00b7 ' + total + ' concepts total</div>' +
+      '<div class="curriculum-header__subtitle">' +
+        data.zones.length + ' zones \u00b7 ' + total + ' concepts total' +
+      '</div>' +
     '</div>';
 
   for (const zone of data.zones) {
-    const color = zoneColor(zone.id);
-    const name = ZONE_NAMES[zone.id] ?? zone.id;
+    const color   = zoneColor(zone.id);
+    const name    = ZONE_NAMES[zone.id] ?? zone.id;
     const barWidth = zone.total > 0 ? Math.round((zone.practiced / zone.total) * 100) : 0;
-    const isOpen = _openZones.has(zone.id);
+    const isOpen  = _openZones.has(zone.id);
 
     html +=
       '<div class="zone-row' + (isOpen ? ' zone-row--open' : '') + '" data-zone="' + zone.id + '">' +
@@ -121,7 +112,6 @@ function _renderZones(container, data, dbName) {
           '<div class="zone-row__dot" style="background:' + color + '"></div>' +
           '<div class="zone-row__name">' + _esc(name) + '</div>' +
           '<div class="zone-row__progress">' + zone.practiced + ' / ' + zone.total + '</div>' +
-          '<button class="zone-row__map-btn" data-mapzone="' + zone.id + '">Map \u2197</button>' +
           '<span class="zone-row__chevron">\u203a</span>' +
         '</div>' +
         '<div class="zone-row__bar">' +
@@ -130,28 +120,16 @@ function _renderZones(container, data, dbName) {
       '</div>';
 
     if (isOpen) {
-      html += '<div class="subcat-list">';
-      for (const subcat of zone.subcategories) {
-        const displayName = subcatName(subcat.id);
-        html +=
-          '<div class="subcat-row" data-subcat="' + subcat.id + '" data-subcat-zone="' + zone.id + '"' +
-              ' style="border-left-color:' + color + '">' +
-            '<span class="subcat-row__name">' + _esc(displayName) + '</span>' +
-            '<span class="subcat-row__count">' + subcat.total + '</span>' +
-            '<button class="subcat-row__map-btn" data-mapsubcat="' + subcat.id + '">Map \u2197</button>' +
-          '</div>';
-      }
-      html += '</div>';
+      html += _subcatListHtml(zone, data, color);
     }
   }
 
   container.innerHTML = html;
   container.scrollTop = _scrollY;
 
-  // Zone accordion toggle (zone-row__top click, not Map button)
+  // Zone toggle
   container.querySelectorAll('.zone-row').forEach((row) => {
-    row.querySelector('.zone-row__top').addEventListener('click', (e) => {
-      if (e.target.closest('[data-mapzone]')) return;
+    row.querySelector('.zone-row__top').addEventListener('click', () => {
       const zoneId = row.dataset.zone;
       if (_openZones.has(zoneId)) _openZones.delete(zoneId);
       else _openZones.add(zoneId);
@@ -159,75 +137,47 @@ function _renderZones(container, data, dbName) {
     });
   });
 
-  // Map buttons — save scroll position then navigate to Map tab
-  container.querySelectorAll('[data-mapzone], [data-mapsubcat]').forEach((btn) => {
+  // Subcategory label area → expand/collapse
+  container.querySelectorAll('.subcat-row__label-area').forEach((area) => {
+    area.addEventListener('click', () => {
+      const row      = area.closest('.subcat-row');
+      const subcatId = row.dataset.subcat;
+      if (_openSubcats.has(subcatId)) _openSubcats.delete(subcatId);
+      else _openSubcats.add(subcatId);
+      _scrollY = container.scrollTop;
+      _renderZones(container, data, dbName);
+    });
+  });
+
+  // Subcategory arrow → info sheet
+  container.querySelectorAll('.subcat-row__arrow').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      _scrollY = container.scrollTop;
-      navigate('map');
-    });
-  });
-
-  // Subcategory row tap — push to concept list
-  container.querySelectorAll('.subcat-row').forEach((row) => {
-    row.addEventListener('click', (e) => {
-      if (e.target.closest('[data-mapsubcat]')) return;
+      const row      = btn.closest('.subcat-row');
       const subcatId = row.dataset.subcat;
-      const zoneId = row.dataset.subcatZone;
+      const zoneId   = row.dataset.zone;
+      _showSubcatInfo(subcatId, zoneId, data);
+    });
+  });
+
+  // Group header toggle
+  container.querySelectorAll('.group-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const key = row.dataset.groupKey;
+      if (_openGroups.has(key)) _openGroups.delete(key);
+      else _openGroups.add(key);
       _scrollY = container.scrollTop;
-      _navStack.push({ type: 'concepts', zoneId, subcatId });
-      _renderConceptList(container, data, { zoneId, subcatId }, dbName);
-    });
-  });
-}
-
-// ── Level 3: concept list ────────────────────────────────────────────
-
-function _renderConceptList(container, data, { zoneId, subcatId }, dbName) {
-  const today = new Date().toISOString().slice(0, 10);
-  const color = zoneColor(zoneId);
-  const zoneName = ZONE_NAMES[zoneId] ?? zoneId;
-  const subcatDisplayName = subcatName(subcatId);
-
-  const STATUS_COLOR = { done: '#98c379', due: '#e5c07b', new: '#61afef', locked: '#3e4451' };
-  const STATUS_LABEL = { done: 'done', due: 'review', new: 'new', locked: 'locked' };
-
-  const concepts = [...data.contentMap.values()].filter(
-    (c) => !c.is_bridge && c.subcategory === subcatId,
-  );
-
-  let rows = '';
-  for (const concept of concepts) {
-    const progress = data.progressMap.get(concept.id);
-    const status = conceptStatus(progress, today);
-    rows +=
-      '<div class="concept-row" data-concept="' + concept.id + '">' +
-        '<div class="concept-row__dot" style="background:' + STATUS_COLOR[status] + '"></div>' +
-        '<div class="concept-row__name">' + _esc(concept.name) + '</div>' +
-        '<div class="concept-row__status">' + STATUS_LABEL[status] + '</div>' +
-      '</div>';
-  }
-
-  _animateIn(container);
-  container.innerHTML =
-    '<div class="curriculum-screen__header">' +
-      '<button class="curriculum-screen__back">\u2190 ' + _esc(zoneName) + '</button>' +
-      '<span class="curriculum-screen__zone-tag" style="background:' + color + '">' +
-        _esc(subcatDisplayName) +
-      '</span>' +
-    '</div>' +
-    '<div>' + rows + '</div>';
-
-  container.querySelector('.curriculum-screen__back').addEventListener('click', () => {
-    _navStack.pop();
-    _render(container, data, dbName).catch((err) => {
-      container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
+      _renderZones(container, data, dbName);
     });
   });
 
+  // Concept row tap
   container.querySelectorAll('.concept-row').forEach((row) => {
     row.addEventListener('click', () => {
       const conceptId = row.dataset.concept;
+      const zoneId    = row.dataset.zone;
+      const subcatId  = row.dataset.subcat;
+      _scrollY = container.scrollTop;
       _navStack.push({ type: 'lesson', conceptId, zoneId, subcatId });
       _renderLesson(container, data, { conceptId, zoneId, subcatId }, dbName).catch((err) => {
         container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
@@ -236,13 +186,142 @@ function _renderConceptList(container, data, { zoneId, subcatId }, dbName) {
   });
 }
 
+// ── Subcategory list HTML builder ──────────────────────────────────────
+
+function _subcatListHtml(zone, data, color) {
+  const today = new Date().toISOString().slice(0, 10);
+  let html = '<div class="subcat-list">';
+
+  for (const subcat of zone.subcategories) {
+    const displayName = subcatName(subcat.id);
+    const isOpen = _openSubcats.has(subcat.id);
+
+    html +=
+      '<div class="subcat-row' + (isOpen ? ' subcat-row--open' : '') + '"' +
+          ' data-subcat="' + subcat.id + '" data-zone="' + zone.id + '"' +
+          ' style="border-left-color:' + color + '">' +
+        '<div class="subcat-row__label-area">' +
+          '<span class="subcat-row__chevron">\u203a</span>' +
+          '<span class="subcat-row__name">' + _esc(displayName) + '</span>' +
+          '<span class="subcat-row__count">' + subcat.total + '</span>' +
+        '</div>' +
+        '<button class="subcat-row__arrow" aria-label="About ' + _esc(displayName) + '">' +
+          '\u2139' +
+        '</button>' +
+      '</div>';
+
+    if (isOpen) {
+      html += _subcatContentHtml(subcat.id, zone.id, data, today, color);
+    }
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// ── Expanded subcategory content: grouped or flat ──────────────────────
+
+function _subcatContentHtml(subcatId, zoneId, data, today, color) {
+  const concepts = [...data.contentMap.values()].filter(
+    (c) => c.zone === zoneId && c.subcategory === subcatId,
+  );
+
+  if (concepts.length === 0) return '';
+
+  const hasGroups = concepts.some((c) => c.group);
+
+  let html = '<div class="subcat-concepts">';
+
+  if (hasGroups) {
+    // Collect unique groups, ordered by GROUP_ORDER then first-seen
+    const allGroupNames = new Set(concepts.map((c) => c.group ?? 'Other'));
+    const groups = [
+      ...GROUP_ORDER.filter((g) => allGroupNames.has(g)),
+      ...[...allGroupNames].filter((g) => !GROUP_ORDER.includes(g)),
+    ];
+
+    for (const groupName of groups) {
+      const groupConcepts = concepts.filter((c) => (c.group ?? 'Other') === groupName);
+      const key = subcatId + ':' + groupName;
+      const isOpen = _openGroups.has(key);
+
+      html +=
+        '<div class="group-row' + (isOpen ? ' group-row--open' : '') + '" data-group-key="' + _esc(key) + '">' +
+          '<span class="group-row__name">' + _esc(groupName) + '</span>' +
+          '<span class="group-row__count">' + groupConcepts.length + '</span>' +
+          '<span class="group-row__chevron">\u203a</span>' +
+        '</div>';
+
+      if (isOpen) {
+        html += _conceptRowsHtml(groupConcepts, zoneId, subcatId, data, today, color);
+      }
+    }
+  } else {
+    html += _conceptRowsHtml(concepts, zoneId, subcatId, data, today, color);
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// ── Concept rows HTML ──────────────────────────────────────────────────
+
+function _conceptRowsHtml(concepts, zoneId, subcatId, data, today, color) {
+  const STATUS_COLOR = { done: '#98c379', due: '#e5c07b', new: '#61afef', locked: '#3e4451' };
+  const STATUS_LABEL = { done: 'done', due: 'review', new: 'new', locked: 'locked' };
+
+  return concepts.map((concept) => {
+    const progress = data.progressMap.get(concept.id);
+    const status   = conceptStatus(progress, today);
+    return (
+      '<div class="concept-row"' +
+          ' data-concept="' + concept.id + '"' +
+          ' data-zone="' + zoneId + '"' +
+          ' data-subcat="' + subcatId + '">' +
+        '<div class="concept-row__dot" style="background:' + STATUS_COLOR[status] + '"></div>' +
+        '<div class="concept-row__name">' + _esc(concept.name) + '</div>' +
+        '<div class="concept-row__status">' + STATUS_LABEL[status] + '</div>' +
+      '</div>'
+    );
+  }).join('');
+}
+
+// ── Subcategory info sheet ─────────────────────────────────────────────
+
+function _showSubcatInfo(subcatId, zoneId, data) {
+  const color       = zoneColor(zoneId);
+  const zoneName    = ZONE_NAMES[zoneId] ?? zoneId;
+  const name        = subcatName(subcatId);
+  const description = SUBCAT_DESCRIPTIONS[subcatId] ?? null;
+
+  const zoneData   = data.zones.find((z) => z.id === zoneId);
+  const subcatData = zoneData?.subcategories.find((s) => s.id === subcatId);
+  const count      = subcatData?.total ?? 0;
+
+  const bodyHtml = description
+    ? '<div class="overlay-sheet__text">' + _esc(description) + '</div>'
+    : '<div class="overlay-sheet__text" style="color:#4b5263;">' +
+        count + ' concept' + (count !== 1 ? 's' : '') +
+      '</div>';
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'overlay-backdrop';
+  const sheet = document.createElement('div');
+  sheet.className = 'overlay-sheet';
+  sheet.innerHTML =
+    '<div class="overlay-sheet__handle"></div>' +
+    '<div class="overlay-sheet__name" style="color:' + color + '">' + _esc(name) + '</div>' +
+    '<span class="overlay-sheet__zone-tag" style="background:' + color + '">' + _esc(zoneName) + '</span>' +
+    bodyHtml;
+
+  const close = () => { backdrop.remove(); sheet.remove(); };
+  backdrop.addEventListener('click', close);
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+}
+
 // ── Linked text renderer ───────────────────────────────────────────────
 
-/**
- * Renders text with [term](concept-id) links as colored <span> elements.
- * isOverlay=true: spans are colored but not clickable (overlay depth cap — spec §3.5.1).
- * Unknown concept IDs fall back to plain text.
- */
 function renderLinkedText(text, contentMap, isOverlay) {
   const segments = parseLinks(text);
   return segments.map((seg) => {
@@ -258,18 +337,13 @@ function renderLinkedText(text, contentMap, isOverlay) {
   }).join('');
 }
 
-/**
- * Opens a bottom sheet overlay for a linked concept.
- * Shows full what_it_is (with non-clickable links) or a locked message.
- * Only called in browser context — guarded in _renderLesson.
- */
 function _showLinkedConcept(container, data, conceptId, backToName) {
   const concept = data.contentMap.get(conceptId);
   if (!concept) return;
 
   const progress = data.progressMap.get(conceptId);
   const isLocked = !progress || !progress.seen;
-  const color = zoneColor(concept.zone);
+  const color    = zoneColor(concept.zone);
   const zoneName = ZONE_NAMES[concept.zone] ?? concept.zone;
 
   const bodyHTML = isLocked
@@ -280,7 +354,6 @@ function _showLinkedConcept(container, data, conceptId, backToName) {
 
   const backdrop = document.createElement('div');
   backdrop.className = 'overlay-backdrop';
-
   const sheet = document.createElement('div');
   sheet.className = 'overlay-sheet';
   sheet.innerHTML =
@@ -293,12 +366,11 @@ function _showLinkedConcept(container, data, conceptId, backToName) {
   const close = () => { backdrop.remove(); sheet.remove(); };
   backdrop.addEventListener('click', close);
   sheet.querySelector('.overlay-sheet__back').addEventListener('click', close);
-
   document.body.appendChild(backdrop);
   document.body.appendChild(sheet);
 }
 
-// ── Level 4: lesson screen ─────────────────────────────────────────────
+// ── Lesson screen ──────────────────────────────────────────────────────
 
 async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, dbName) {
   const concept = data.contentMap.get(conceptId);
@@ -307,16 +379,14 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
     return;
   }
 
-  const color = zoneColor(zoneId);
-  const zoneName = ZONE_NAMES[zoneId] ?? zoneId;
+  const color            = zoneColor(zoneId);
+  const zoneName         = ZONE_NAMES[zoneId] ?? zoneId;
   const subcatDisplayName = subcatName(subcatId);
 
-  // Mark concept as seen and refresh progressMap so concept list shows updated status on back
   await markSeen(conceptId, dbName);
   const updatedProgress = await getUserProgress(conceptId, dbName);
   if (updatedProgress) data.progressMap.set(conceptId, updatedProgress);
 
-  // Command block (only if concept has an example_command)
   const commandBlock = concept.example_command
     ? '<div class="lesson-section">' +
         '<div class="lesson-section__label">Example Command</div>' +
@@ -324,17 +394,17 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
       '</div>'
     : '';
 
-  // Examples: first visible one always shown; remaining behind Read more toggle
-  const visible = concept.examples.filter((e) => e.visible);
-  const hidden = concept.examples.filter((e) => !e.visible);
+  const visible    = concept.examples.filter((e) => e.visible);
+  const hidden     = concept.examples.filter((e) => !e.visible);
   const visibleHtml = visible.map((e) => '<div class="lesson__example">' + _esc(e.text) + '</div>').join('');
-  const hiddenHtml = hidden.length > 0
+  const hiddenHtml  = hidden.length > 0
     ? '<div class="lesson__hidden-examples" style="display:none">' +
         hidden.map((e) => '<div class="lesson__example">' + _esc(e.text) + '</div>').join('') +
       '</div>' +
       '<button class="lesson__read-more">Read more \u25be</button>'
     : '';
 
+  _animateIn(container);
   container.innerHTML =
     '<div class="curriculum-screen__header">' +
       '<button class="curriculum-screen__back">\u2190 ' + _esc(subcatDisplayName) + '</button>' +
@@ -350,7 +420,7 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
       '</div>' +
       commandBlock +
       '<div class="lesson-section">' +
-        '<div class="lesson-section__label">Examples</div>' +
+        '<div class="lesson-section__label">' + _esc(concept.examples_label ?? 'Examples') + '</div>' +
         visibleHtml +
         hiddenHtml +
       '</div>' +
@@ -386,7 +456,6 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
     });
   }
 
-  // Concept hyperlinks + comprehension check — browser only (document.body unavailable in Node.js tests)
   if (typeof document !== 'undefined' && document.body) {
     container.querySelectorAll('.concept-link').forEach((link) => {
       link.addEventListener('click', () => {
@@ -400,10 +469,10 @@ async function _renderLesson(container, data, { conceptId, zoneId, subcatId }, d
   }
 }
 
-// ── Comprehension check bottom sheet ──────────────────────────────────
+// ── Comprehension check ────────────────────────────────────────────────
 
 function _showComprehensionCheck(container, data, concept, progress, dbName) {
-  const questions = _selectCheckQuestions(concept, progress);
+  const questions = _selectCheckQuestions(concept);
 
   const backdrop = document.createElement('div');
   backdrop.className = 'overlay-backdrop';
@@ -423,20 +492,20 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
     return;
   }
 
-  let qIndex = 0;
+  let qIndex   = 0;
   const answers = [];
-  let answered = false;
+  let answered  = false;
   let reviewShowing = false;
 
   backdrop.addEventListener('click', () => {
-    if (reviewShowing) { close(); return; }   // review done — just close
-    if (answers.length === 0) { close(); return; }  // before first answer — just close
+    if (reviewShowing) { close(); return; }
+    if (answers.length === 0) { close(); return; }
     if (confirm('Leave the check? Your progress won\'t be saved.')) close();
   });
 
   function renderQuestion() {
     answered = false;
-    const { index: qIdx, question: q } = questions[qIndex];
+    const { question: q } = questions[qIndex];
     const optionsHtml = q.options.map((opt, i) =>
       '<button class="check-option" data-index="' + i + '">' + _esc(opt) + '</button>',
     ).join('');
@@ -463,12 +532,9 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
         answered = true;
 
         const selectedIndex = parseInt(btn.dataset.index, 10);
-        const correct = selectedIndex === q.correct_index;
+        const correct       = selectedIndex === q.correct_index;
 
-        // Mark selected option
         btn.classList.add(correct ? 'check-option--correct' : 'check-option--wrong');
-
-        // Always mark the correct answer green and disable all options
         sheet.querySelectorAll('.check-option').forEach((b) => {
           if (parseInt(b.dataset.index, 10) === q.correct_index) {
             b.classList.add('check-option--correct');
@@ -476,7 +542,6 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
           b.disabled = true;
         });
 
-        // Show explanation + Next button on wrong answer
         if (!correct) {
           const expEl = sheet.querySelector('#check-exp');
           if (expEl) expEl.classList.add('check-explanation--open');
@@ -488,30 +553,23 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
           sheet.querySelector('.check-question').appendChild(nextBtn);
         }
 
-        answers.push({ questionIndex: qIdx, selectedIndex, correct });
-
-        if (correct) {
-          setTimeout(advance, 700);
-        }
+        answers.push({ questionIndex: qIndex, selectedIndex, correct });
+        if (correct) setTimeout(advance, 700);
       });
     });
   }
 
   function advance() {
     qIndex++;
-    if (qIndex >= questions.length) {
-      renderReview();
-    } else {
-      renderQuestion();
-    }
+    if (qIndex >= questions.length) renderReview();
+    else renderQuestion();
   }
 
   function renderReview() {
     reviewShowing = true;
-    const usedIndices = questions.map((q) => q.index);
 
-    const reviewItems = questions.map((q) => {
-      const answer = answers.find((a) => a.questionIndex === q.index);
+    const reviewItems = questions.map((q, i) => {
+      const answer      = answers.find((a) => a.questionIndex === i);
       const correctText = _esc(q.question.options[q.question.correct_index]);
       let wrongHtml = '';
       if (answer && !answer.correct) {
@@ -536,12 +594,12 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
 
     sheet.querySelector('.check-review__back').addEventListener('click', async () => {
       try {
-        await saveCheckCompletion(concept.id, usedIndices, dbName);
+        await saveCheckCompletion(concept.id, [], dbName);
         const refreshed = await getUserProgress(concept.id, dbName);
         if (refreshed) data.progressMap.set(concept.id, refreshed);
         close();
-        if (_navStack[_navStack.length - 1] === undefined) return;
-        await _renderLesson(container, data, _navStack[_navStack.length - 1], dbName);
+        const top = _navStack[_navStack.length - 1];
+        if (top) await _renderLesson(container, data, top, dbName);
       } catch (err) {
         close();
         container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';

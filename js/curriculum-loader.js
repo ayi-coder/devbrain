@@ -1,4 +1,4 @@
-import { getAllContent, addContentIfNew, getAllUserProgress, upsertUserProgress } from './db.js';
+import { getAllContent, seedContent, getAllUserProgress, upsertUserProgress } from './db.js';
 
 const DEFAULT_PROGRESS = {
   seen: false,
@@ -22,7 +22,7 @@ export async function loadCurriculum(dbName = 'devbrain') {
   if (!response.ok) throw new Error(`Failed to load curriculum: ${response.status}`);
   const concepts = await response.json();
 
-  await addContentIfNew(concepts, dbName);
+  await seedContent(concepts, dbName);
 
   const seenIds = new Set(existingProgress.map((p) => p.id));
 

@@ -1,22 +1,20 @@
-const CACHE_NAME = 'devbrain-v3';
+const CACHE_NAME = 'devbrain-v7';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './css/theme.css',
-  './js/concepts.js',
-  './js/db.js',
-  './js/adaptive.js',
-  './js/router.js',
   './js/app.js',
+  './js/db.js',
+  './js/router.js',
+  './js/zones.js',
+  './js/curriculum-loader.js',
   './views/home.js',
-  './views/concept-map.js',
-  './views/learn.js',
+  './views/curriculum.js',
   './views/quiz.js',
-  './views/results.js',
-  './views/progress.js',
+  './data/curriculum.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -37,7 +35,16 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

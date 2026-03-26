@@ -49,7 +49,8 @@ describe('curriculum-loader', () => {
     await loadCurriculum(DB);
 
     const progress = await getAllUserProgress(DB);
-    assert.equal(progress.length, 3, 'one progress record per concept');
+    const content = await (await import('../js/db.js')).getAllContent(DB);
+    assert.equal(progress.length, content.length, 'one progress record per concept');
 
     const record = progress.find((p) => p.id === 'your-machine-os');
     assert.ok(record, 'progress record for your-machine-os exists');

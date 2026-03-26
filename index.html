@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0d0f14">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -10,14 +10,13 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/theme.css">
 </head>
 <body>
   <div id="app">
     <div id="view-home" class="view"></div>
     <div id="view-curriculum" class="view"></div>
-    <div id="view-map" class="view"></div>
     <div id="view-quiz" class="view"></div>
   </div>
 
@@ -57,31 +56,6 @@
         </svg>
       </span>
       <span class="nav-tab__label">Curriculum</span>
-    </button>
-
-    <!-- MAP -->
-    <button class="nav-tab" data-view="map" aria-label="Map">
-      <span class="nav-tab__pill">
-        <svg class="icon-outline" width="22" height="22" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
-          stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M3.6 9h16.8M3.6 15h16.8"/>
-          <path d="M12 3c-2 2.5-3 5.5-3 9s1 6.5 3 9"/>
-          <path d="M12 3c2 2.5 3 5.5 3 9s-1 6.5-3 9"/>
-        </svg>
-        <svg class="icon-filled" width="22" height="22" viewBox="0 0 24 24"
-          fill="currentColor" aria-hidden="true">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1
-            17.93V17h2v2.93c-.33.04-.66.07-1 .07s-.67-.03-1-.07zM4.07 13H7v2.63A8.01 8.01
-            0 014.07 13zm0-2A8.01 8.01 0 016.93 7H7v4H4.07V11zM13 4.07V7h-2V4.07c.33-.04
-            .66-.07 1-.07s.67.03 1 .07zm4 1.19A8.01 8.01 0 0119.93 11H17V7l.07-.74zm2.93
-            7.74H17v4h2.93A8.01 8.01 0 0119.93 13zM9 17.74V13H7v4.74A8.01 8.01 0 009
-            17.74zm6-11.48V11h2V6.26A8.01 8.01 0 0015 6.26zM9 6.26V11H7V6.26A8.01 8.01
-            0 019 6.26zm6 11.48V13h-2v4.74A8.01 8.01 0 0115 17.74z"/>
-        </svg>
-      </span>
-      <span class="nav-tab__label">Map</span>
     </button>
 
     <!-- QUIZ -->

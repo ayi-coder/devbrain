@@ -140,21 +140,19 @@ describe('renderCurriculum', () => {
     assert.ok(container.innerHTML.includes('1 concepts total'), 'total count in header');
   });
 
-  it('concept list screen shows concept names after nav push', async () => {
+  it('renders subcategory name in zone accordion when zone is open', async () => {
     const dbName = mkName();
     await openDB(dbName);
     await seedContent([sampleConcept], dbName);
     await upsertUserProgress({ ...defaultProg, id: 'c1' }, dbName);
 
-    // Simulate user having navigated to concept list for bash-commands
-    _resetCurriculumState({
-      navStack: [{ type: 'concepts', zoneId: 'shell-terminal', subcatId: 'bash-commands' }],
-    });
+    // Open the shell-terminal zone
+    _resetCurriculumState({ openZones: ['shell-terminal'] });
 
     const container = makeMockContainer();
     await renderCurriculum(container, {}, dbName);
 
-    assert.ok(container.innerHTML.includes('mkdir'), 'concept name shown in list');
+    assert.ok(container.innerHTML.includes('Bash'), 'subcategory name rendered when zone open');
   });
 
   it('marks concept as seen when lesson screen is rendered', async () => {
@@ -223,48 +221,67 @@ describe('renderCurriculum', () => {
 
 // ── _selectCheckQuestions ─────────────────────────────────────────────
 
-const conceptWithQuestions = {
+const conceptWithForCheck = {
   ...sampleConcept,
   questions: {
     definition: [
-      { prompt: 'Q0', options: ['a', 'b', 'c', 'd'], correct_index: 0 },
-      { prompt: 'Q1', options: ['a', 'b', 'c', 'd'], correct_index: 1 },
-      { prompt: 'Q2', options: ['a', 'b', 'c', 'd'], correct_index: 2 },
-      { prompt: 'Q3', options: ['a', 'b', 'c', 'd'], correct_index: 3 },
+      { prompt: 'D0', options: ['a', 'b', 'c', 'd'], correct_index: 0, for_check: true, explanation: 'exp' },
+      { prompt: 'D1', options: ['a', 'b', 'c', 'd'], correct_index: 1, for_check: false },
     ],
-    usage: [], anatomy: [], build: [],
+    usage: [
+      { prompt: 'U0', options: ['a', 'b', 'c', 'd'], correct_index: 0, for_check: true, explanation: 'exp' },
+      { prompt: 'U1', options: ['a', 'b', 'c', 'd'], correct_index: 1, for_check: false },
+    ],
+    anatomy: [
+      { prompt: 'A0', options: ['a', 'b', 'c', 'd'], correct_index: 0, for_check: true, explanation: 'exp' },
+    ],
+    build: [],
   },
 };
 
 describe('_selectCheckQuestions', () => {
-  it('returns up to 3 definition questions', () => {
-    const result = _selectCheckQuestions(conceptWithQuestions, null);
+  it('returns questions with for_check:true across all types', () => {
+    const result = _selectCheckQuestions(conceptWithForCheck);
     assert.equal(result.length, 3);
     result.forEach((item) => {
+      assert.ok('type' in item);
       assert.ok('index' in item);
       assert.ok('question' in item);
+      assert.equal(item.question.for_check, true);
     });
   });
 
-  it('prefers unused indices', () => {
-    // 4 questions total, 1 used → unused = [1,2,3] which has >= 3, so pool = unused
-    const progress = { check_used_indices: { definition: [0] } };
-    const result = _selectCheckQuestions(conceptWithQuestions, progress);
-    const indices = result.map((r) => r.index);
-    // Should not include used index 0
-    assert.ok(!indices.includes(0), 'should not include used index 0');
-    assert.ok(indices.includes(1), 'should include index 1 (unused)');
-    assert.ok(indices.includes(2), 'should include index 2 (unused)');
-    assert.ok(indices.includes(3), 'should include index 3 (unused)');
+  it('returns questions in definition → usage → anatomy → build order', () => {
+    const result = _selectCheckQuestions(conceptWithForCheck);
+    assert.equal(result[0].type, 'definition');
+    assert.equal(result[0].index, 0);
+    assert.equal(result[1].type, 'usage');
+    assert.equal(result[1].index, 0);
+    assert.equal(result[2].type, 'anatomy');
+    assert.equal(result[2].index, 0);
   });
 
-  it('cycles from full pool when all used', () => {
-    const progress = { check_used_indices: { definition: [0, 1, 2, 3] } };
-    const result = _selectCheckQuestions(conceptWithQuestions, progress);
+  it('returns empty array when no for_check questions exist', () => {
+    const concept = { ...sampleConcept, questions: { definition: [], usage: [], anatomy: [], build: [] } };
+    const result = _selectCheckQuestions(concept);
+    assert.equal(result.length, 0);
+  });
+
+  it('caps result at 3 even if more for_check questions exist', () => {
+    const concept = {
+      ...sampleConcept,
+      questions: {
+        definition: [
+          { prompt: 'D0', options: [], correct_index: 0, for_check: true, explanation: 'e' },
+          { prompt: 'D1', options: [], correct_index: 0, for_check: true, explanation: 'e' },
+          { prompt: 'D2', options: [], correct_index: 0, for_check: true, explanation: 'e' },
+          { prompt: 'D3', options: [], correct_index: 0, for_check: true, explanation: 'e' },
+        ],
+        usage: [], anatomy: [], build: [],
+      },
+    };
+    const result = _selectCheckQuestions(concept);
     assert.equal(result.length, 3);
-    // falls back to full pool [0,1,2,3], takes first 3
-    const indices = result.map((r) => r.index);
-    assert.deepEqual(indices, [0, 1, 2]);
   });
 });
 
