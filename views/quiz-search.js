@@ -23,6 +23,14 @@ function _highlightMatch(name, query) {
     _esc(name.slice(idx + query.length));
 }
 
+/** Remove any search/popup/card overlays left on document.body. */
+export function cleanupSearchOverlays() {
+  if (typeof document === 'undefined') return;
+  ['.qs-overlay', '.qs-unseen-popup-overlay', '.qs-info-card'].forEach((sel) => {
+    document.querySelectorAll(sel).forEach((el) => el.remove());
+  });
+}
+
 export async function renderSearch(container, session, dbName, onDone) {
   await openDB(dbName);
   const [allContent, allProgress] = await Promise.all([
@@ -84,12 +92,20 @@ export async function renderSearch(container, session, dbName, onDone) {
   document.body.appendChild(overlay);
   overlay.querySelector('#qs-input').focus();
 
+  // Clean up and close if user navigates away via tab switch
+  function onHashChange() { cleanupSearchOverlays(); onDone(currentSession); }
+  window.addEventListener('hashchange', onHashChange, { once: true });
+
   function rerender() {
     overlay.querySelector('#qs-list').innerHTML = buildRows();
     attachRows();
   }
 
-  function close() { overlay.remove(); onDone(currentSession); }
+  function close() {
+    window.removeEventListener('hashchange', onHashChange);
+    overlay.remove();
+    onDone(currentSession);
+  }
 
   function attachRows() {
     overlay.querySelectorAll('[data-cid]').forEach((btn) => {
@@ -132,8 +148,8 @@ function _showUnseenPopup(conceptId, allContent, onAdd) {
     const popup = document.createElement('div');
     popup.className = 'qs-unseen-popup-overlay';
 
-    const dot  = document.createElement('div');
-    dot.className = 'qs-unseen-popup';
+    const inner = document.createElement('div');
+    inner.className = 'qs-unseen-popup';
 
     const dotEl = document.createElement('div');
     dotEl.className = 'qs-unseen-popup__dot';
@@ -161,13 +177,13 @@ function _showUnseenPopup(conceptId, allContent, onAdd) {
     cancelBtn.className = 'qs-unseen-popup__btn qs-unseen-popup__btn--cancel';
     cancelBtn.textContent = 'Cancel';
 
-    dot.appendChild(dotEl);
-    dot.appendChild(nameEl);
-    dot.appendChild(msgEl);
-    dot.appendChild(cardBtn);
-    dot.appendChild(addBtn);
-    dot.appendChild(cancelBtn);
-    popup.appendChild(dot);
+    inner.appendChild(dotEl);
+    inner.appendChild(nameEl);
+    inner.appendChild(msgEl);
+    inner.appendChild(cardBtn);
+    inner.appendChild(addBtn);
+    inner.appendChild(cancelBtn);
+    popup.appendChild(inner);
     document.body.appendChild(popup);
 
     addBtn.addEventListener('click', () => { popup.remove(); onAdd(); });
@@ -188,31 +204,41 @@ function _showInfoCard(concept, onBack) {
   const color    = zoneColor(concept.zone);
   const zoneName = ZONE_NAMES[concept.zone] ?? concept.zone;
 
-  const visible = (concept.examples ?? []).filter((e) => e.visible !== false);
+  const visible = (concept.examples ?? []).filter((e) => e.visible);
   const examplesHtml = visible.length > 0
-    ? '<div class="qs-info-card__section-label">Examples</div>' +
-      visible.map((e) => '<div class="qs-info-card__example">' + _esc(e.text) + '</div>').join('')
+    ? '<div class="lesson-section">' +
+        '<div class="lesson-section__label">' + _esc(concept.examples_label ?? 'Examples') + '</div>' +
+        visible.map((e) => '<div class="lesson__example">' + _esc(e.text) + '</div>').join('') +
+      '</div>'
     : '';
 
   const commandHtml = concept.example_command
-    ? '<div class="qs-info-card__section-label">Example Command</div>' +
-      '<div class="qs-info-card__command">' + _esc(concept.example_command) + '</div>'
+    ? '<div class="lesson-section">' +
+        '<div class="lesson-section__label">Example Command</div>' +
+        '<div class="lesson__command">' + _esc(concept.example_command) + '</div>' +
+      '</div>'
     : '';
 
   const useWhenHtml = concept.use_when
-    ? '<div class="qs-info-card__section-label">Use it when</div>' +
-      '<div class="qs-info-card__text">' + _esc(concept.use_when) + '</div>'
+    ? '<div class="lesson-section">' +
+        '<div class="lesson-section__label">Use it when</div>' +
+        '<div class="lesson-section__text">' + _esc(concept.use_when) + '</div>' +
+      '</div>'
     : '';
 
   card.innerHTML =
     '<button class="qs-info-card__back" id="ic-back">\u2190 Back</button>' +
-    '<div class="qs-info-card__name">' + _esc(concept.name) + '</div>' +
-    '<div class="qs-info-card__zone" style="color:' + color + '">' + _esc(zoneName) + '</div>' +
-    '<div class="qs-info-card__section-label">What it is</div>' +
-    '<div class="qs-info-card__text">' + _esc(concept.what_it_is ?? '') + '</div>' +
-    commandHtml +
-    examplesHtml +
-    useWhenHtml;
+    '<div class="lesson">' +
+      '<div class="lesson__name">' + _esc(concept.name) + '</div>' +
+      '<span class="lesson__zone-tag" style="background:' + color + '">' + _esc(zoneName) + '</span>' +
+      '<div class="lesson-section">' +
+        '<div class="lesson-section__label">What it is</div>' +
+        '<div class="lesson-section__text">' + _esc(concept.what_it_is ?? '') + '</div>' +
+      '</div>' +
+      commandHtml +
+      examplesHtml +
+      useWhenHtml +
+    '</div>';
 
   document.body.appendChild(card);
   card.querySelector('#ic-back').addEventListener('click', () => { card.remove(); onBack(); });

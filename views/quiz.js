@@ -6,7 +6,7 @@ import {
 } from '../js/db.js';
 import { zoneColor, ZONE_NAMES, ZONE_ORDER } from '../js/zones.js';
 import { navigate, setQuizActive } from '../js/router.js';
-import { renderSearch } from './quiz-search.js';
+import { renderSearch, cleanupSearchOverlays } from './quiz-search.js';
 
 function _esc(str) {
   return String(str)
@@ -93,6 +93,7 @@ export function selectQuizQuestions(concept, progress, restrictToWrong = false) 
 // ── Entry point ────────────────────────────────────────────────────────────
 
 export async function renderQuiz(container, params = {}, dbName = 'devbrain') {
+  cleanupSearchOverlays();
   await openDB(dbName);
   if (params.preload && !_session.includes(params.preload)) {
     _session.push(params.preload);
