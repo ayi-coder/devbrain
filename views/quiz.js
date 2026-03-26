@@ -115,6 +115,15 @@ async function _renderBuilder(container, dbName) {
   ]);
 
   const inQuizMode = _mode === 'quiz';
+  const isEmpty = exploredToday.length === 0 && recommended.length === 0 && overdue.length === 0 && wrongConcepts.length === 0;
+
+  // Tab header (stats mode only)
+  const tabHeaderHtml = !inQuizMode
+    ? '<div class="quiz-tab-header">' +
+        '<div class="quiz-tab-header__title">Quiz</div>' +
+        '<div class="quiz-tab-header__sub">Tap any concept to add it to a session</div>' +
+      '</div>'
+    : '';
 
   // Resume banner
   let resumeHtml = '';
@@ -133,14 +142,22 @@ async function _renderBuilder(container, dbName) {
       '</div>';
   }
 
-  // Summary strip (stats mode only)
   const srItems = [...recommended, ...overdue];
-  const summaryParts = [];
-  if (exploredToday.length > 0) summaryParts.push('<span class="qss-item"><span class="qss-num">' + exploredToday.length + '</span> studied today</span>');
-  if (srItems.length > 0)       summaryParts.push('<span class="qss-item"><span class="qss-num">' + srItems.length + '</span> due for review</span>');
-  if (wrongConcepts.length > 0) summaryParts.push('<span class="qss-item qss-item--warn"><span class="qss-num">' + wrongConcepts.length + '</span> to fix</span>');
-  const summaryHtml = !inQuizMode && summaryParts.length > 0
-    ? '<div class="quiz-stats-strip">' + summaryParts.join('<span class="qss-sep">\u00b7</span>') + '</div>'
+
+  // Empty state
+  const emptyHtml = isEmpty
+    ? '<div class="quiz-empty-state">' +
+        '<div class="quiz-empty-rings">' +
+          '<div class="quiz-empty-ring"></div>' +
+          '<div class="quiz-empty-ring"></div>' +
+          '<div class="quiz-empty-ring"></div>' +
+          '<div class="quiz-empty-ring"></div>' +
+          '<div class="quiz-empty-dot"></div>' +
+        '</div>' +
+        '<div class="quiz-empty-state__title">Quiz yourself</div>' +
+        '<div class="quiz-empty-state__body">Explore concepts on the Learn tab, then come back here to test what you know.</div>' +
+        '<button class="quiz-empty-state__cta" id="quiz-empty-cta">Explore concepts \u2192</button>' +
+      '</div>'
     : '';
 
   // Explored Today
@@ -153,14 +170,14 @@ async function _renderBuilder(container, dbName) {
     for (const { content } of exploredToday) {
       const inSession = _session.includes(content.id);
       const color = zoneColor(content.zone);
+      const addCls = inSession ? ' quiz-comp-row__add--added' : (!inQuizMode ? ' quiz-comp-row__add--hint' : '');
       todayHtml +=
         '<div class="quiz-comp-row">' +
           '<span class="quiz-comp-row__dot" style="background:' + color + '"></span>' +
           '<span class="quiz-comp-row__name">' + _esc(content.name) + '</span>' +
-          (inQuizMode
-            ? '<button class="quiz-comp-row__add' + (inSession ? ' quiz-comp-row__add--added' : '') +
-              '" data-add="' + _esc(content.id) + '">' + (inSession ? '\u2713' : '+') + '</button>'
-            : '') +
+          '<button class="quiz-comp-row__add' + addCls + '" data-add="' + _esc(content.id) + '">' +
+            (inSession ? '\u2713' : '+') +
+          '</button>' +
         '</div>';
     }
     todayHtml += '</div>';
@@ -183,15 +200,15 @@ async function _renderBuilder(container, dbName) {
       const badgeHtml = daysOverdue !== null && daysOverdue > 0
         ? '<span class="quiz-comp-row__badge quiz-comp-row__badge--due">' + daysOverdue + 'd</span>'
         : '<span class="quiz-comp-row__badge quiz-comp-row__badge--new">NEW</span>';
+      const srAddCls = inSession ? ' quiz-comp-row__add--added' : (!inQuizMode ? ' quiz-comp-row__add--hint' : '');
       srHtml +=
         '<div class="quiz-comp-row">' +
           '<span class="quiz-comp-row__dot" style="background:' + color + '"></span>' +
           '<span class="quiz-comp-row__name">' + _esc(content.name) + '</span>' +
           badgeHtml +
-          (inQuizMode
-            ? '<button class="quiz-comp-row__add' + (inSession ? ' quiz-comp-row__add--added' : '') +
-              '" data-add="' + _esc(content.id) + '">' + (inSession ? '\u2713' : '+') + '</button>'
-            : '') +
+          '<button class="quiz-comp-row__add' + srAddCls + '" data-add="' + _esc(content.id) + '">' +
+            (inSession ? '\u2713' : '+') +
+          '</button>' +
         '</div>';
     }
     srHtml += '</div>';
@@ -209,15 +226,15 @@ async function _renderBuilder(container, dbName) {
       const color      = zoneColor(content.zone);
       const wrongCount = Object.values(progress.wrong_answer_indices ?? {})
         .reduce((sum, arr) => sum + arr.length, 0);
+      const wAddCls = inSession ? ' quiz-comp-row__add--added' : (!inQuizMode ? ' quiz-comp-row__add--hint' : '');
       wrongHtml +=
         '<div class="quiz-comp-row">' +
           '<span class="quiz-comp-row__dot" style="background:' + color + '"></span>' +
           '<span class="quiz-comp-row__name">' + _esc(content.name) + '</span>' +
           '<span class="quiz-comp-row__badge quiz-comp-row__badge--wrong">' + wrongCount + ' wrong</span>' +
-          (inQuizMode
-            ? '<button class="quiz-comp-row__add' + (inSession ? ' quiz-comp-row__add--added' : '') +
-              '" data-add="' + _esc(content.id) + '">' + (inSession ? '\u2713' : '+') + '</button>'
-            : '') +
+          '<button class="quiz-comp-row__add' + wAddCls + '" data-add="' + _esc(content.id) + '">' +
+            (inSession ? '\u2713' : '+') +
+          '</button>' +
         '</div>';
     }
     wrongHtml += '</div>';
@@ -239,8 +256,9 @@ async function _renderBuilder(container, dbName) {
   }
 
   container.innerHTML =
+    tabHeaderHtml +
     '<div class="quiz-builder-wrap">' +
-      searchHtml + summaryHtml + resumeHtml + todayHtml + srHtml + wrongHtml +
+      searchHtml + emptyHtml + resumeHtml + todayHtml + srHtml + wrongHtml +
     '</div>' +
     _buildFooterHtml(nameMap);
 
@@ -251,8 +269,7 @@ async function _renderBuilder(container, dbName) {
 function _buildFooterHtml(nameMap = new Map()) {
   if (_mode === 'stats') {
     return '<div class="quiz-footer quiz-footer--stats">' +
-      '<span class="quiz-footer__hint">Nothing selected</span>' +
-      '<button class="quiz-footer__quiz-btn" id="quiz-mode-enter">Quiz \u203a</button>' +
+      '<button class="quiz-footer__quiz-btn" id="quiz-mode-enter">Start a Quiz Session</button>' +
     '</div>';
   }
   if (_session.length === 0) {
@@ -305,12 +322,18 @@ function _attachBuilderListeners(container, dbName) {
       rerender();
     });
 
+  container.querySelector('#quiz-empty-cta')
+    ?.addEventListener('click', () => navigate('#curriculum'));
+
   container.querySelectorAll('[data-add]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.add;
-      _session = _session.includes(id)
-        ? _session.filter((s) => s !== id)
-        : [..._session, id];
+      if (_session.includes(id)) {
+        _session = _session.filter((s) => s !== id);
+      } else {
+        if (_mode === 'stats') _mode = 'quiz';
+        _session = [..._session, id];
+      }
       rerender();
     });
   });
@@ -344,8 +367,20 @@ function _showStartSheet(container, dbName) {
       '<div class="quiz-start-sheet__handle"></div>' +
       '<div class="quiz-start-sheet__title">Start a session</div>' +
       '<div id="sheet-resume-slot"></div>' +
-      '<button class="quiz-start-sheet__btn quiz-start-sheet__btn--add"    id="sheet-add">+ Add from today\'s concepts</button>' +
-      '<button class="quiz-start-sheet__btn quiz-start-sheet__btn--search" id="sheet-search">\u2315 Search all concepts</button>' +
+      '<button class="quiz-start-sheet__option" id="sheet-add">' +
+        '<span class="quiz-start-sheet__option-icon">+</span>' +
+        '<div>' +
+          '<div class="quiz-start-sheet__option-label">Today\'s concepts</div>' +
+          '<div class="quiz-start-sheet__option-sub">Add what you explored today</div>' +
+        '</div>' +
+      '</button>' +
+      '<button class="quiz-start-sheet__option" id="sheet-search">' +
+        '<span class="quiz-start-sheet__option-icon">\u2315</span>' +
+        '<div>' +
+          '<div class="quiz-start-sheet__option-label">Search all concepts</div>' +
+          '<div class="quiz-start-sheet__option-sub">Browse the full library</div>' +
+        '</div>' +
+      '</button>' +
     '</div>';
 
   document.body.appendChild(sheet);
@@ -357,9 +392,12 @@ function _showStartSheet(container, dbName) {
     const done  = saved.queuePos ?? 0;
     const total = (saved.queue ?? []).length;
     slot.innerHTML =
-      '<button class="quiz-start-sheet__btn quiz-start-sheet__btn--resume" id="sheet-resume">' +
-        '\u25b6 Resume saved session' +
-        '<span class="quiz-start-sheet__meta">' + _esc(names) + ' \u2014 ' + done + ' / ' + total + ' done</span>' +
+      '<button class="quiz-start-sheet__option quiz-start-sheet__option--resume" id="sheet-resume">' +
+        '<span class="quiz-start-sheet__option-icon">\u25b6</span>' +
+        '<div>' +
+          '<div class="quiz-start-sheet__option-label">Resume saved session</div>' +
+          '<div class="quiz-start-sheet__option-sub">' + _esc(names) + ' \u2014 ' + done + ' / ' + total + ' done</div>' +
+        '</div>' +
       '</button>';
     sheet.querySelector('#sheet-resume')?.addEventListener('click', async () => {
       sheet.remove();
@@ -423,14 +461,16 @@ async function _handleExit(container, dbName) {
   if (_queuePos >= _queue.length) { _cleanupSession(container, dbName); return; }
   const dialog = document.createElement('div');
   dialog.className = 'quiz-exit-dialog-overlay';
+  const exitPct = Math.round((_queuePos / _queue.length) * 100);
   dialog.innerHTML =
     '<div class="quiz-exit-dialog">' +
       '<div class="quiz-exit-dialog__handle"></div>' +
       '<div class="quiz-exit-dialog__title">Leave this session?</div>' +
-      '<div class="quiz-exit-dialog__sub">You\'re ' + _queuePos + ' / ' + _queue.length + ' questions in.</div>' +
-      '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--save"   id="exit-save">\ud83d\udcbe Save &amp; exit</button>' +
-      '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--end"    id="exit-end">End session</button>' +
-      '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--cancel" id="exit-cancel">Cancel \u2014 stay in quiz</button>' +
+      '<div class="quiz-exit-dialog__progress-sub">' + _queuePos + ' of ' + _queue.length + ' questions answered</div>' +
+      '<div class="quiz-exit-dialog__progress-bar"><div class="quiz-exit-dialog__progress-fill" style="width:' + exitPct + '%"></div></div>' +
+      '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--save"   id="exit-save">Save &amp; exit</button>' +
+      '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--end"    id="exit-end">End without saving</button>' +
+      '<button class="quiz-exit-dialog__btn quiz-exit-dialog__btn--cancel" id="exit-cancel">Keep going</button>' +
     '</div>';
   document.body.appendChild(dialog);
 
