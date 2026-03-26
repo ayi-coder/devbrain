@@ -133,11 +133,23 @@ async function _renderBuilder(container, dbName) {
       '</div>';
   }
 
+  // Summary strip (stats mode only)
+  const srItems = [...recommended, ...overdue];
+  const summaryParts = [];
+  if (exploredToday.length > 0) summaryParts.push('<span class="qss-item"><span class="qss-num">' + exploredToday.length + '</span> studied today</span>');
+  if (srItems.length > 0)       summaryParts.push('<span class="qss-item"><span class="qss-num">' + srItems.length + '</span> due for review</span>');
+  if (wrongConcepts.length > 0) summaryParts.push('<span class="qss-item qss-item--warn"><span class="qss-num">' + wrongConcepts.length + '</span> to fix</span>');
+  const summaryHtml = !inQuizMode && summaryParts.length > 0
+    ? '<div class="quiz-stats-strip">' + summaryParts.join('<span class="qss-sep">\u00b7</span>') + '</div>'
+    : '';
+
   // Explored Today
   let todayHtml = '';
   if (exploredToday.length > 0) {
     todayHtml = '<div class="quiz-compartment">' +
-      '<div class="quiz-compartment__label quiz-compartment__label--today">EXPLORED TODAY</div>';
+      '<div class="quiz-compartment__label quiz-compartment__label--today">EXPLORED TODAY' +
+        '<span class="quiz-compartment__count">' + exploredToday.length + '</span>' +
+      '</div>';
     for (const { content } of exploredToday) {
       const inSession = _session.includes(content.id);
       const color = zoneColor(content.zone);
@@ -155,12 +167,13 @@ async function _renderBuilder(container, dbName) {
   }
 
   // Spaced Repetition
-  const srItems = [...recommended, ...overdue];
   let srHtml = '';
   if (srItems.length > 0) {
     const today = new Date().toISOString().slice(0, 10);
     srHtml = '<div class="quiz-compartment">' +
-      '<div class="quiz-compartment__label quiz-compartment__label--sr">SPACED REPETITION</div>';
+      '<div class="quiz-compartment__label quiz-compartment__label--sr">DUE FOR REVIEW' +
+        '<span class="quiz-compartment__count">' + srItems.length + '</span>' +
+      '</div>';
     for (const { content, progress } of srItems) {
       const inSession   = _session.includes(content.id);
       const color       = zoneColor(content.zone);
@@ -188,7 +201,9 @@ async function _renderBuilder(container, dbName) {
   let wrongHtml = '';
   if (wrongConcepts.length > 0) {
     wrongHtml = '<div class="quiz-compartment">' +
-      '<div class="quiz-compartment__label quiz-compartment__label--wrong">REVISE WRONG ANSWERS</div>';
+      '<div class="quiz-compartment__label quiz-compartment__label--wrong">WRONG ANSWERS' +
+        '<span class="quiz-compartment__count">' + wrongConcepts.length + '</span>' +
+      '</div>';
     for (const { content, progress } of wrongConcepts) {
       const inSession  = _session.includes(content.id);
       const color      = zoneColor(content.zone);
@@ -210,7 +225,7 @@ async function _renderBuilder(container, dbName) {
 
   const searchHtml = inQuizMode
     ? '<div class="quiz-mode-header">' +
-        '<button class="quiz-mode-header__back" id="quiz-mode-back">\u2190 Stats</button>' +
+        '<button class="quiz-mode-header__back" id="quiz-mode-back">\u2190</button>' +
         '<div class="quiz-search-bar" id="quiz-search-bar">' +
           '<span class="quiz-search-bar__icon">\u2315</span>' +
           '<span class="quiz-search-bar__placeholder">Search all concepts...</span>' +
@@ -225,7 +240,7 @@ async function _renderBuilder(container, dbName) {
 
   container.innerHTML =
     '<div class="quiz-builder-wrap">' +
-      searchHtml + resumeHtml + todayHtml + srHtml + wrongHtml +
+      searchHtml + summaryHtml + resumeHtml + todayHtml + srHtml + wrongHtml +
     '</div>' +
     _buildFooterHtml(nameMap);
 
