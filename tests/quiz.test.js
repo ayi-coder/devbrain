@@ -87,6 +87,17 @@ describe('getWrongAnswerConcepts', () => {
     assert.equal(result.length, 1);
     assert.equal(result[0].content.id, 'c1');
   });
+
+  it('returns concept once even when multiple types have wrong answers', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    await upsertUserProgress({
+      ...defaultProg('c1'), seen: true,
+      wrong_answer_indices: { definition: [0], usage: [1], anatomy: [], build: [] },
+    }, DB);
+    const result = await getWrongAnswerConcepts(DB);
+    assert.equal(result.length, 1);
+  });
 });
 
 describe('getSavedSession / saveMidSession / deleteSavedSession', () => {
@@ -108,6 +119,15 @@ describe('getSavedSession / saveMidSession / deleteSavedSession', () => {
     await saveMidSession({ session: ['c1'], queue: [], queuePos: 0, answers: [] }, DB);
     await deleteSavedSession(DB);
     assert.equal(await getSavedSession(DB), null);
+  });
+
+  it('saveMidSession overwrites previous saved session', async () => {
+    const DB = mkName(); await openDB(DB);
+    await saveMidSession({ session: ['c1'], queue: [], queuePos: 0, answers: [] }, DB);
+    await saveMidSession({ session: ['c2'], queue: [], queuePos: 5, answers: [] }, DB);
+    const result = await getSavedSession(DB);
+    assert.deepEqual(result.session, ['c2']);
+    assert.equal(result.queuePos, 5);
   });
 });
 
@@ -147,5 +167,17 @@ describe('applyWrongAnswers', () => {
     await seedContent([concept('c1')], DB);
     // No upsertUserProgress call — should not throw
     await assert.doesNotReject(applyWrongAnswers('c1', [{ type: 'definition', index: 0, correct: false }], DB));
+  });
+
+  it('clearing all wrong answers removes concept from getWrongAnswerConcepts', async () => {
+    const DB = mkName(); await openDB(DB);
+    await seedContent([concept('c1')], DB);
+    await upsertUserProgress({
+      ...defaultProg('c1'),
+      wrong_answer_indices: { definition: [0], usage: [], anatomy: [], build: [] },
+    }, DB);
+    await applyWrongAnswers('c1', [{ type: 'definition', index: 0, correct: true }], DB);
+    const result = await getWrongAnswerConcepts(DB);
+    assert.equal(result.length, 0, 'concept removed when all wrong answers cleared');
   });
 });

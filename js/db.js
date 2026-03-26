@@ -51,7 +51,7 @@ export async function openDB(name = DB_NAME_PROD) {
       if (!db.objectStoreNames.contains('saved_session')) {
         db.createObjectStore('saved_session', { keyPath: 'id' });
       }
-      if (event.oldVersion < 3 && db.objectStoreNames.contains('user-progress')) {
+      if (event.oldVersion >= 1 && event.oldVersion < 3 && db.objectStoreNames.contains('user-progress')) {
         const store = tx.objectStore('user-progress');
         store.getAll().onsuccess = (e) => {
           for (const record of e.target.result) {
@@ -533,7 +533,8 @@ export async function deleteSavedSession(dbName = DB_NAME_PROD) {
   const db = getDB(dbName);
   return new Promise((resolve, reject) => {
     const tx = db.transaction('saved_session', 'readwrite');
-    tx.objectStore('saved_session').delete(1).onsuccess = () => resolve();
+    tx.objectStore('saved_session').delete(1);
+    tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
