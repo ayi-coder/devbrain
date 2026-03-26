@@ -1,4 +1,4 @@
-import { openDB, getAllContent, getAllUserProgress } from '../js/db.js';
+import { openDB, getAllContent, getAllUserProgress, markSeen } from '../js/db.js';
 import { zoneColor, ZONE_NAMES, ZONE_ORDER } from '../js/zones.js';
 
 function _esc(str) {
@@ -116,7 +116,7 @@ export async function renderSearch(container, session, dbName, onDone) {
           currentSession = currentSession.filter((s) => s !== cid);
           rerender(); return;
         }
-        if (unseen) _showUnseenPopup(cid, allContent, () => {
+        if (unseen) _showUnseenPopup(cid, allContent, dbName, progressMap, () => {
           if (!currentSession.includes(cid)) currentSession.push(cid);
           rerender();
         });
@@ -140,7 +140,7 @@ export async function renderSearch(container, session, dbName, onDone) {
   attachRows();
 }
 
-function _showUnseenPopup(conceptId, allContent, onAdd) {
+function _showUnseenPopup(conceptId, allContent, dbName, progressMap, onAdd) {
   const concept = allContent.find((c) => c.id === conceptId);
   if (!concept) { onAdd(); return; }
 
@@ -190,14 +190,19 @@ function _showUnseenPopup(conceptId, allContent, onAdd) {
     cancelBtn.addEventListener('click', () => popup.remove());
     cardBtn.addEventListener('click', () => {
       popup.remove();
-      _showInfoCard(concept, () => makePopup(true));
+      _showInfoCard(concept, dbName, progressMap, () => makePopup(true));
     });
   }
 
   makePopup(false);
 }
 
-function _showInfoCard(concept, onBack) {
+function _showInfoCard(concept, dbName, progressMap, onBack) {
+  // Mark as seen immediately
+  markSeen(concept.id, dbName).then(() => {
+    progressMap.set(concept.id, { ...(progressMap.get(concept.id) ?? {}), seen: true });
+  });
+
   const card = document.createElement('div');
   card.className = 'qs-info-card';
 
@@ -227,7 +232,9 @@ function _showInfoCard(concept, onBack) {
     : '';
 
   card.innerHTML =
-    '<button class="qs-info-card__back" id="ic-back">\u2190 Back</button>' +
+    '<div class="curriculum-screen__header">' +
+      '<button class="curriculum-screen__back" id="ic-back">\u2190 Back</button>' +
+    '</div>' +
     '<div class="lesson">' +
       '<div class="lesson__name">' + _esc(concept.name) + '</div>' +
       '<span class="lesson__zone-tag" style="background:' + color + '">' + _esc(zoneName) + '</span>' +
