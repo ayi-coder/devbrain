@@ -244,3 +244,27 @@ describe('renderQuiz — quiz mode via preload', () => {
     assert.ok(container.innerHTML.includes('data-add'));
   });
 });
+
+import { _filterConcepts } from '../views/quiz-search.js';
+
+describe('_filterConcepts', () => {
+  const concepts = [
+    { id: 'c1', name: 'Bash Basics',  zone: 'shell-terminal' },
+    { id: 'c2', name: 'Git Commit',   zone: 'git' },
+    { id: 'c3', name: 'Bash Scripts', zone: 'shell-terminal' },
+  ];
+
+  it('returns all concepts when query is empty', () => {
+    assert.equal(_filterConcepts(concepts, '').length, 3);
+  });
+
+  it('filters case-insensitively', () => {
+    const result = _filterConcepts(concepts, 'bash');
+    assert.equal(result.length, 2);
+    assert.ok(result.every((c) => c.name.toLowerCase().includes('bash')));
+  });
+
+  it('returns empty array when no matches', () => {
+    assert.deepEqual(_filterConcepts(concepts, 'zzz'), []);
+  });
+});
