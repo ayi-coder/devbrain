@@ -210,10 +210,18 @@ function _showInfoCard(concept, dbName, progressMap, onBack) {
   const zoneName = ZONE_NAMES[concept.zone] ?? concept.zone;
 
   const visible = (concept.examples ?? []).filter((e) => e.visible);
-  const examplesHtml = visible.length > 0
+  const hidden  = (concept.examples ?? []).filter((e) => !e.visible);
+  const hiddenHtml = hidden.length > 0
+    ? '<div class="lesson__hidden-examples" style="display:none">' +
+        hidden.map((e) => '<div class="lesson__example">' + _esc(e.text) + '</div>').join('') +
+      '</div>' +
+      '<button class="lesson__read-more">Read more \u25be</button>'
+    : '';
+  const examplesHtml = visible.length > 0 || hidden.length > 0
     ? '<div class="lesson-section">' +
         '<div class="lesson-section__label">' + _esc(concept.examples_label ?? 'Examples') + '</div>' +
         visible.map((e) => '<div class="lesson__example">' + _esc(e.text) + '</div>').join('') +
+        hiddenHtml +
       '</div>'
     : '';
 
@@ -249,4 +257,17 @@ function _showInfoCard(concept, dbName, progressMap, onBack) {
 
   document.body.appendChild(card);
   card.querySelector('#ic-back').addEventListener('click', () => { card.remove(); onBack(); });
+  const readMoreBtn = card.querySelector('.lesson__read-more');
+  if (readMoreBtn) {
+    readMoreBtn.addEventListener('click', () => {
+      const hiddenSection = card.querySelector('.lesson__hidden-examples');
+      if (hiddenSection.style.display === 'none') {
+        hiddenSection.style.display = 'block';
+        readMoreBtn.textContent = 'Read less \u25b4';
+      } else {
+        hiddenSection.style.display = 'none';
+        readMoreBtn.textContent = 'Read more \u25be';
+      }
+    });
+  }
 }
