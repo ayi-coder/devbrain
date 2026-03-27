@@ -8,6 +8,12 @@ import { zoneColor, ZONE_NAMES, ZONE_ORDER } from '../js/zones.js';
 import { navigate, setQuizActive } from '../js/router.js';
 import { renderSearch, cleanupSearchOverlays } from './quiz-search.js';
 
+export function cleanupQuizOverlays() {
+  cleanupSearchOverlays();
+  document.querySelectorAll('.quiz-start-sheet-overlay, .quiz-exit-dialog-overlay')
+    .forEach((el) => el.remove());
+}
+
 function _esc(str) {
   return String(str)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')

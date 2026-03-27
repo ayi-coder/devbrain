@@ -3,7 +3,7 @@ import { loadCurriculum } from './curriculum-loader.js';
 import { initRouter } from './router.js';
 import { renderProgress } from '../views/home.js';
 import { renderCurriculum } from '../views/curriculum.js';
-import { renderQuiz } from '../views/quiz.js';
+import { renderQuiz, cleanupQuizOverlays } from '../views/quiz.js';
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js');
@@ -14,9 +14,9 @@ async function init() {
   await loadCurriculum();
 
   initRouter({
-    explore:  (params) => renderCurriculum(document.getElementById('view-explore'), params),
+    explore:  (params) => { cleanupQuizOverlays(); renderCurriculum(document.getElementById('view-explore'), params); },
     quiz:     (params) => renderQuiz(document.getElementById('view-quiz'), params),
-    progress: (params) => renderProgress(document.getElementById('view-progress'), params),
+    progress: (params) => { cleanupQuizOverlays(); renderProgress(document.getElementById('view-progress'), params); },
   });
 }
 
