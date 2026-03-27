@@ -31,7 +31,10 @@ export function cleanupSearchOverlays() {
   });
 }
 
-export async function renderSearch(container, session, dbName, onDone) {
+// onSelect: optional — when provided, renders rows as nav items (explore mode).
+// Each row tap closes the overlay and calls onSelect(conceptId).
+// When null (default), renders rows with +/✓ session toggle buttons (quiz mode).
+export async function renderSearch(container, session, dbName, onDone, onSelect = null) {
   await openDB(dbName);
   const [allContent, allProgress] = await Promise.all([
     getAllContent(dbName),
@@ -58,18 +61,30 @@ export async function renderSearch(container, session, dbName, onDone) {
         _esc((ZONE_NAMES[zoneId] ?? zoneId).toUpperCase()) + '</div>';
       for (const c of items) {
         const unseen = !(progressMap.get(c.id)?.seen);
-        const inSess = currentSession.includes(c.id);
-        html +=
-          '<div class="qs-row">' +
-            '<span class="qs-row__dot" style="background:' + zoneColor(c.zone) + '"></span>' +
-            '<span class="qs-row__name">' +
-              _highlightMatch(c.name, query) +
-              (unseen ? '<span class="qs-row__unseen">unseen</span>' : '') +
-            '</span>' +
-            '<button class="qs-row__add' + (inSess ? ' qs-row__add--added' : '') +
-              '" data-cid="' + _esc(c.id) + '" data-unseen="' + unseen + '">' +
-              (inSess ? '\u2713' : '+') + '</button>' +
-          '</div>';
+        if (onSelect) {
+          html +=
+            '<div class="qs-row qs-row--selectable" data-cid="' + _esc(c.id) + '">' +
+              '<span class="qs-row__dot" style="background:' + zoneColor(c.zone) + '"></span>' +
+              '<span class="qs-row__name">' +
+                _highlightMatch(c.name, query) +
+                (unseen ? '<span class="qs-row__unseen">unseen</span>' : '') +
+              '</span>' +
+              '<span class="qs-row__chevron">\u203a</span>' +
+            '</div>';
+        } else {
+          const inSess = currentSession.includes(c.id);
+          html +=
+            '<div class="qs-row">' +
+              '<span class="qs-row__dot" style="background:' + zoneColor(c.zone) + '"></span>' +
+              '<span class="qs-row__name">' +
+                _highlightMatch(c.name, query) +
+                (unseen ? '<span class="qs-row__unseen">unseen</span>' : '') +
+              '</span>' +
+              '<button class="qs-row__add' + (inSess ? ' qs-row__add--added' : '') +
+                '" data-cid="' + _esc(c.id) + '" data-unseen="' + unseen + '">' +
+                (inSess ? '\u2713' : '+') + '</button>' +
+            '</div>';
+        }
       }
     }
     if (!html) html = '<div class="qs-empty">No concepts match \u201c' + _esc(query) + '\u201d</div>';
@@ -104,14 +119,20 @@ export async function renderSearch(container, session, dbName, onDone) {
   function close() {
     window.removeEventListener('hashchange', onHashChange);
     overlay.remove();
-    onDone(currentSession);
+    if (!onSelect) onDone(currentSession);
   }
 
   function attachRows() {
-    overlay.querySelectorAll('[data-cid]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const cid    = btn.dataset.cid;
-        const unseen = btn.dataset.unseen === 'true';
+    overlay.querySelectorAll('[data-cid]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const cid = el.dataset.cid;
+        if (onSelect) {
+          window.removeEventListener('hashchange', onHashChange);
+          overlay.remove();
+          onSelect(cid);
+          return;
+        }
+        const unseen = el.dataset.unseen === 'true';
         if (currentSession.includes(cid)) {
           currentSession = currentSession.filter((s) => s !== cid);
           rerender(); return;

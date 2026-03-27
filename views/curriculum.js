@@ -1,6 +1,7 @@
 import { getCurriculumData, markSeen, getUserProgress, saveCheckCompletion } from '../js/db.js';
 import { zoneColor, ZONE_NAMES, subcatName, SUBCAT_DESCRIPTIONS, GROUP_ORDER } from '../js/zones.js';
 import { navigate } from '../js/router.js';
+import { renderSearch } from './quiz-search.js';
 
 /** Escapes HTML special characters for safe innerHTML insertion. */
 function _esc(str) {
@@ -94,7 +95,10 @@ function _renderZones(container, data, dbName) {
 
   let html =
     '<div class="curriculum-header">' +
-      '<div class="curriculum-header__title">Curriculum</div>' +
+      '<div class="curriculum-header__top">' +
+        '<div class="curriculum-header__title">Curriculum</div>' +
+        '<button class="curriculum-header__search" id="curriculum-search" aria-label="Search concepts">\u2315</button>' +
+      '</div>' +
       '<div class="curriculum-header__subtitle">' +
         data.zones.length + ' zones \u00b7 ' + total + ' concepts total' +
       '</div>' +
@@ -182,6 +186,18 @@ function _renderZones(container, data, dbName) {
       _renderLesson(container, data, { conceptId, zoneId, subcatId }, dbName).catch((err) => {
         container.innerHTML = '<p style="padding:20px;color:var(--red)">' + err.message + '</p>';
       });
+    });
+  });
+
+  // Search button — open overlay, on select navigate straight to lesson
+  container.querySelector('#curriculum-search')?.addEventListener('click', () => {
+    renderSearch(container, [], dbName, () => {}, (cid) => {
+      const c = data.contentMap.get(cid);
+      if (!c) return;
+      _scrollY = container.scrollTop;
+      _navStack.push({ type: 'lesson', conceptId: cid, zoneId: c.zone, subcatId: c.subcategory });
+      _renderLesson(container, data, { conceptId: cid, zoneId: c.zone, subcatId: c.subcategory }, dbName)
+        .catch(() => {});
     });
   });
 }
