@@ -480,8 +480,10 @@ async function _handleExit(container, dbName) {
     await saveMidSession({ session: _session, queue: _queue, queuePos: _queuePos, answers: _answers }, dbName);
     _cleanupSession(container, dbName);
   });
-  dialog.querySelector('#exit-end').addEventListener('click', () => {
-    dialog.remove(); _cleanupSession(container, dbName);
+  dialog.querySelector('#exit-end').addEventListener('click', async () => {
+    dialog.remove();
+    await deleteSavedSession(dbName);
+    _cleanupSession(container, dbName);
   });
   dialog.querySelector('#exit-cancel').addEventListener('click', () => dialog.remove());
 }
@@ -532,7 +534,17 @@ function _renderQuestion(container, dbName) {
 
 function _renderMCQuestion(container, item, dbName, headerHtml) {
   const q = item.question;
-  const optionsHtml = q.options
+
+  // Shuffle options so correct answer isn't always at the same position in the data
+  const order = q.options.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  const shuffledOptions = order.map(i => q.options[i]);
+  const shuffledCorrect = order.indexOf(q.correct_index);
+
+  const optionsHtml = shuffledOptions
     .map((opt, i) => '<button class="quiz-mc-option" data-opt="' + i + '">' + _esc(opt) + '</button>')
     .join('');
   const explanationHtml = q.explanation
@@ -554,10 +566,10 @@ function _renderMCQuestion(container, item, dbName, headerHtml) {
   container.querySelectorAll('.quiz-mc-option').forEach(btn => {
     btn.addEventListener('click', async () => {
       const chosen  = parseInt(btn.dataset.opt, 10);
-      const correct = chosen === q.correct_index;
+      const correct = chosen === shuffledCorrect;
       container.querySelectorAll('.quiz-mc-option').forEach(b => {
         b.disabled = true;
-        if (parseInt(b.dataset.opt, 10) === q.correct_index) b.classList.add('quiz-mc-option--correct');
+        if (parseInt(b.dataset.opt, 10) === shuffledCorrect) b.classList.add('quiz-mc-option--correct');
       });
       await applyQuizResult(item.conceptId, correct, item.type, item.index, dbName);
       _answers.push({ conceptId: item.conceptId, type: item.type, index: item.index, correct });
