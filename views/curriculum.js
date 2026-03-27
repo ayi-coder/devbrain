@@ -522,7 +522,17 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
   function renderQuestion() {
     answered = false;
     const { question: q } = questions[qIndex];
-    const optionsHtml = q.options.map((opt, i) =>
+
+    // Shuffle options so the correct answer isn't always at the same position
+    const order = q.options.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const shuffledOptions = order.map(i => q.options[i]);
+    const shuffledCorrect = order.indexOf(q.correct_index);
+
+    const optionsHtml = shuffledOptions.map((opt, i) =>
       '<button class="check-option" data-index="' + i + '">' + _esc(opt) + '</button>',
     ).join('');
 
@@ -548,11 +558,11 @@ function _showComprehensionCheck(container, data, concept, progress, dbName) {
         answered = true;
 
         const selectedIndex = parseInt(btn.dataset.index, 10);
-        const correct       = selectedIndex === q.correct_index;
+        const correct       = selectedIndex === shuffledCorrect;
 
         btn.classList.add(correct ? 'check-option--correct' : 'check-option--wrong');
         sheet.querySelectorAll('.check-option').forEach((b) => {
-          if (parseInt(b.dataset.index, 10) === q.correct_index) {
+          if (parseInt(b.dataset.index, 10) === shuffledCorrect) {
             b.classList.add('check-option--correct');
           }
           b.disabled = true;
