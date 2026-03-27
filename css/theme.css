@@ -1918,7 +1918,7 @@ body {
 .qs-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
 .qs-row:last-child { border-bottom: none; }
 .qs-row__dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.qs-row__name { flex: 1; font-size: 13px; color: var(--fg); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.qs-row__name { flex: 1; min-width: 0; font-size: 13px; color: var(--fg); }
 .qs-row__unseen { font-size: 9px; font-weight: 700; letter-spacing: 0.3px; color: var(--fg3); background: var(--bg-overlay); border-radius: 4px; padding: 2px 5px; }
 .qs-match { color: var(--accent); }
 .qs-row__add { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--accent); font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; transition: background var(--dur-xs), transform var(--dur-xs) var(--ease-out); }
